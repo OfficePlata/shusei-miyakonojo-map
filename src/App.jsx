@@ -1,81 +1,61 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { MapPin, Clock, Users, Phone, Star, Filter, Search } from 'lucide-react'
+import { Search, MapPin, Clock, Users, Star, Phone } from 'lucide-react';
 import { restaurants, venues } from './data/restaurants.js'
 import './App.css'
 
 function App() {
-  const [filteredRestaurants, setFilteredRestaurants] = useState(restaurants)
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('all')
   const [selectedPriceRange, setSelectedPriceRange] = useState('all')
-  const [searchTerm, setSearchTerm] = useState('')
   const [selectedRestaurant, setSelectedRestaurant] = useState(null)
 
   // ジャンルの一覧を取得
   const genres = [...new Set(restaurants.map(r => r.genre))]
   
   // 価格帯の一覧を取得
-  const priceRanges = [
-    '～￥999',
-    '￥1,000～￥1,999',
-    '￥2,000～￥2,999',
-    '￥3,000～￥3,999',
-    '￥4,000～￥4,999',
-    '￥5,000～￥5,999',
-    '￥15,000～￥19,999'
-  ]
+  const priceRanges = [...new Set(restaurants.map(r => r.priceRangeDinner).filter(Boolean))]
 
-  // フィルタリング処理
-  useEffect(() => {
-    let filtered = restaurants
+  // フィルタリングされたレストラン
+  const filteredRestaurants = useMemo(() => {
+    return restaurants.filter(restaurant => {
+      const matchesSearch = restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          restaurant.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesGenre = selectedGenre === 'all' || restaurant.genre === selectedGenre
+      const matchesPriceRange = selectedPriceRange === 'all' || restaurant.priceRangeDinner === selectedPriceRange
+      
+      return matchesSearch && matchesGenre && matchesPriceRange
+    })
+  }, [searchTerm, selectedGenre, selectedPriceRange])
 
-    if (selectedGenre !== 'all') {
-      filtered = filtered.filter(r => r.genre === selectedGenre)
-    }
-
-    if (selectedPriceRange !== 'all') {
-      filtered = filtered.filter(r => 
-        r.priceRangeDinner === selectedPriceRange || 
-        r.priceRangeLunch === selectedPriceRange
-      )
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(r => 
-        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.description.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    setFilteredRestaurants(filtered)
-  }, [selectedGenre, selectedPriceRange, searchTerm])
-
-  const getPriceColor = (price) => {
-    if (price.includes('15,000')) return 'bg-purple-100 text-purple-800'
-    if (price.includes('5,000')) return 'bg-red-100 text-red-800'
-    if (price.includes('3,000') || price.includes('4,000')) return 'bg-orange-100 text-orange-800'
-    if (price.includes('2,000')) return 'bg-yellow-100 text-yellow-800'
-    return 'bg-green-100 text-green-800'
-  }
-
+  // ジャンル別の色分け
   const getGenreColor = (genre) => {
     const colors = {
+      '居酒屋': 'bg-orange-100 text-orange-800',
       '焼肉': 'bg-red-100 text-red-800',
-      '居酒屋': 'bg-blue-100 text-blue-800',
-      '寿司': 'bg-purple-100 text-purple-800',
-      '鳥料理': 'bg-orange-100 text-orange-800',
-      'おでん': 'bg-yellow-100 text-yellow-800',
-      'うどん': 'bg-green-100 text-green-800'
+      'スナック': 'bg-purple-100 text-purple-800',
+      'ダイナー': 'bg-blue-100 text-blue-800',
+      'バー': 'bg-gray-100 text-gray-800',
+      'ダイニング': 'bg-green-100 text-green-800'
     }
     return colors[genre] || 'bg-gray-100 text-gray-800'
   }
 
+  // 価格帯別の色分け
+  const getPriceColor = (priceRange) => {
+    if (!priceRange) return 'bg-gray-100 text-gray-800'
+    if (priceRange.includes('3,000')) return 'bg-green-100 text-green-800'
+    if (priceRange.includes('4,000')) return 'bg-yellow-100 text-yellow-800'
+    if (priceRange.includes('5,000')) return 'bg-orange-100 text-orange-800'
+    return 'bg-red-100 text-red-800'
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50">
+    <div className="min-h-screen bg-gray-50">
       {/* ヘッダー */}
       <header className="bg-red-600 text-white shadow-lg">
         <div className="container mx-auto px-4 py-6">
@@ -92,17 +72,13 @@ function App() {
         </div>
       </header>
 
+      {/* メインコンテンツ */}
       <div className="container mx-auto px-4 py-8">
         {/* 検索・フィルター */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5 text-red-600" />
-            <h2 className="text-lg font-semibold">お店を探す</h2>
-          </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="店名・説明で検索"
                 value={searchTerm}
@@ -113,7 +89,7 @@ function App() {
             
             <Select value={selectedGenre} onValueChange={setSelectedGenre}>
               <SelectTrigger>
-                <SelectValue placeholder="ジャンルを選択" />
+                <SelectValue placeholder="すべてのジャンル" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">すべてのジャンル</SelectItem>
@@ -122,10 +98,10 @@ function App() {
                 ))}
               </SelectContent>
             </Select>
-
+            
             <Select value={selectedPriceRange} onValueChange={setSelectedPriceRange}>
               <SelectTrigger>
-                <SelectValue placeholder="価格帯を選択" />
+                <SelectValue placeholder="すべての価格帯" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">すべての価格帯</SelectItem>
@@ -188,34 +164,32 @@ function App() {
                     <Users className="h-4 w-4" />
                     <span>最大{restaurant.capacity}名</span>
                   </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  {restaurant.tabelogUrl && (
-                    <Button variant="outline" size="sm" className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(restaurant.tabelogUrl, '_blank')
-                            }}>
-                      食べログ
+                  
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (restaurant.phoneNumber) {
+                          window.open(`tel:${restaurant.phoneNumber}`, '_self');
+                        } else {
+                          alert('電話番号が登録されていません。直接お店にお問い合わせください。');
+                        }
+                      }}
+                    >
+                      <Phone className="w-4 h-4 mr-1" />
+                      電話予約
                     </Button>
-                  )}
-                  {restaurant.hotpepperUrl && (
-                    <Button variant="outline" size="sm" className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(restaurant.hotpepperUrl, '_blank')
-                            }}>
-                      予約する
-                    </Button>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* 店舗詳細モーダル */}
+        {/* モーダル */}
         {selectedRestaurant && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                onClick={() => setSelectedRestaurant(null)}>
@@ -223,56 +197,60 @@ function App() {
                  onClick={(e) => e.stopPropagation()}>
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-2xl font-bold">{selectedRestaurant.name}</h2>
-                  <Button variant="ghost" onClick={() => setSelectedRestaurant(null)}>
-                    ✕
-                  </Button>
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedRestaurant.name}</h2>
+                    <p className="text-gray-600 mt-1">{selectedRestaurant.description}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedRestaurant(null)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ×
+                  </button>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="flex gap-2 flex-wrap">
-                    <Badge className={getGenreColor(selectedRestaurant.genre)}>
-                      {selectedRestaurant.genre}
-                    </Badge>
-                    <Badge className={getPriceColor(selectedRestaurant.priceRangeDinner)}>
-                      {selectedRestaurant.priceRangeDinner}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium">{selectedRestaurant.rating}</span>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <img 
+                      src={selectedRestaurant.imageUrl} 
+                      alt={selectedRestaurant.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
                   </div>
                   
-                  <p className="text-gray-700">{selectedRestaurant.description}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium">アクセス</p>
-                          <p className="text-sm text-gray-600">{selectedRestaurant.station} {selectedRestaurant.walkTime}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium">営業時間</p>
-                          <p className="text-sm text-gray-600">{selectedRestaurant.openingHours}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="font-medium">収容人数</p>
-                          <p className="text-sm text-gray-600">最大{selectedRestaurant.capacity}名</p>
-                        </div>
-                      </div>
+                  <div className="space-y-4">
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge className={getGenreColor(selectedRestaurant.genre)}>
+                        {selectedRestaurant.genre}
+                      </Badge>
+                      <Badge className={getPriceColor(selectedRestaurant.priceRangeDinner)}>
+                        {selectedRestaurant.priceRangeDinner}
+                      </Badge>
                     </div>
                     
                     <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{selectedRestaurant.address}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        <span>{selectedRestaurant.openingHours}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>最大{selectedRestaurant.capacity}名</span>
+                      </div>
+                      
+                      {selectedRestaurant.phoneNumber && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          <span>{selectedRestaurant.phoneNumber}</span>
+                        </div>
+                      )}
+                      
                       <div>
                         <p className="font-medium">価格帯</p>
                         <p className="text-sm text-gray-600">ディナー: {selectedRestaurant.priceRangeDinner}</p>
@@ -284,26 +262,28 @@ function App() {
                       {selectedRestaurant.closingDay && (
                         <div>
                           <p className="font-medium">定休日</p>
-                          <p className="text-sm text-gray-600">{selectedRestaurant.closingDay}</p>
+                          <p className="text-gray-600">{selectedRestaurant.closingDay}</p>
                         </div>
                       )}
                     </div>
                   </div>
-                  
-                  <div className="flex gap-3 pt-4">
-                    {selectedRestaurant.tabelogUrl && (
-                      <Button className="flex-1" 
-                              onClick={() => window.open(selectedRestaurant.tabelogUrl, '_blank')}>
-                        食べログで詳細を見る
-                      </Button>
-                    )}
-                    {selectedRestaurant.hotpepperUrl && (
-                      <Button className="flex-1 bg-orange-600 hover:bg-orange-700" 
-                              onClick={() => window.open(selectedRestaurant.hotpepperUrl, '_blank')}>
-                        予約する
-                      </Button>
-                    )}
-                  </div>
+                </div>
+                
+                <div className="flex gap-2 mt-6">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      if (selectedRestaurant.phoneNumber) {
+                        window.open(`tel:${selectedRestaurant.phoneNumber}`, '_self');
+                      } else {
+                        alert('電話番号が登録されていません。直接お店にお問い合わせください。');
+                      }
+                    }}
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    電話で予約・問い合わせ
+                  </Button>
                 </div>
               </div>
             </div>
