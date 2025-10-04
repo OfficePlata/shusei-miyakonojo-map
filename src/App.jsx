@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Search, MapPin, Clock, Users, Star, Phone } from 'lucide-react';
-import { restaurants, venues } from './data/restaurants.js'
+import { Search, MapPin, Clock, Users, Star, Phone, Map } from 'lucide-react';
+import { restaurants, venues, cityCenter } from './data/restaurants.js'
+import RestaurantMap from './components/RestaurantMap.jsx'
 import './App.css'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
   const [selectedGenre, setSelectedGenre] = useState('all')
   const [selectedPriceRange, setSelectedPriceRange] = useState('all')
   const [selectedRestaurant, setSelectedRestaurant] = useState(null)
+  const [showMap, setShowMap] = useState(false)
 
   // ジャンルの一覧を取得
   const genres = [...new Set(restaurants.map(r => r.genre))]
@@ -113,12 +115,33 @@ function App() {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600">{filteredRestaurants.length}件の会員店舗が見つかりました</p>
+          <Button
+            variant={showMap ? "default" : "outline"}
+            onClick={() => setShowMap(!showMap)}
+            className="flex items-center gap-2"
+          >
+            <Map className="w-4 h-4" />
+            {showMap ? "リスト表示" : "マップ表示"}
+          </Button>
         </div>
 
+        {/* マップ表示 */}
+        {showMap && (
+          <div className="mb-8">
+            <RestaurantMap
+              restaurants={filteredRestaurants}
+              selectedRestaurant={selectedRestaurant}
+              onRestaurantSelect={setSelectedRestaurant}
+              center={cityCenter}
+            />
+          </div>
+        )}
+
         {/* 店舗一覧 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {!showMap && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRestaurants.map(restaurant => (
             <Card key={restaurant.id} className="hover:shadow-lg transition-shadow duration-300 cursor-pointer"
                   onClick={() => setSelectedRestaurant(restaurant)}>
@@ -187,7 +210,8 @@ function App() {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
 
         {/* モーダル */}
         {selectedRestaurant && (
