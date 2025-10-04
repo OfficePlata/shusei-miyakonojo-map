@@ -82,10 +82,10 @@ function App() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">守成クラブ都城会場</h1>
-              <p className="text-red-100 mt-1">三部会飲食店マップ</p>
+              <p className="text-red-100 mt-1">会員店舗 三部会マップ</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-red-100">22時以降営業</p>
+              <p className="text-sm text-red-100">22時以降営業 会員店舗</p>
               <p className="text-lg font-semibold">信頼でつなぐ商売繁盛の絆</p>
             </div>
           </div>
@@ -137,11 +137,8 @@ function App() {
           </div>
         </div>
 
-        {/* 結果表示 */}
         <div className="mb-6">
-          <p className="text-gray-600">
-            {filteredRestaurants.length}件のお店が見つかりました
-          </p>
+          <p className="text-gray-600">{filteredRestaurants.length}件の会員店舗が見つかりました</p>
         </div>
 
         {/* 店舗一覧 */}
@@ -172,12 +169,16 @@ function App() {
                   {restaurant.description}
                 </CardDescription>
                 
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-center text-sm text-gray-600 mb-2">
+                    <MapPin className="w-4 h-4 mr-1" />
                     <span>{restaurant.station} {restaurant.walkTime}</span>
                   </div>
-                  
+                  <div className="flex items-center text-sm text-red-600 mb-2">
+                    <span className="bg-red-100 px-2 py-1 rounded text-xs font-medium">
+                      {restaurant.memberType}
+                    </span>
+                  </div>                
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <span>{restaurant.openingHours}</span>
