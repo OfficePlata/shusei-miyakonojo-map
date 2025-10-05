@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Search, MapPin, Clock, Users, Star, Phone, Map } from 'lucide-react';
+import { Search, MapPin, Clock, Users, Phone, Map } from 'lucide-react';
 import { restaurants, venues, cityCenter } from './data/restaurants.js'
 import RestaurantMap from './components/RestaurantMap.jsx'
 import './App.css'
@@ -148,10 +148,6 @@ function App() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{restaurant.name}</CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    <span className="text-sm font-medium">{restaurant.rating}</span>
-                  </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Badge className={getGenreColor(restaurant.genre)}>
