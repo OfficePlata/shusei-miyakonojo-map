@@ -6,7 +6,8 @@ export const restaurants = [
     genre: "居酒屋",
     description: "2024年8月8日リニューアルオープン。山崎メガハイボール1,350円が人気！炭焼きメニューが自慢の大衆酒場。",
     address: "宮崎県都城市牟田町20-5 スターラインビル2階",
-  
+    latitude: 31.7215,
+    longitude: 131.0545,
     phoneNumber: "0986-77-6407",
     openingHours: "18:00～24:00",
     closingDay: "",
