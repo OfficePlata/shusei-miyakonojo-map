@@ -260,24 +260,7 @@ export const restaurants = [
   },
   {
     id: 13,
-    name: "cafe live barB1",
-    genre: "カフェバー",
-    description: "福留優二マスターが営むカフェバー。昼はカフェ、夜はバーとして営業。",
-    address: "宮崎県都城市",
-    latitude: 31.7190,
-    longitude: 131.0580,
-    phoneNumber: "",
-    openingHours: "18:00～深夜",
-    closingDay: "",
-    priceRangeDinner: "￥3,000～￥4,999",
-    capacity: 20,
-    imageUrl: "/api/placeholder/300/200",
-    rating: 3.60,
-    station: "都城駅",
-    walkTime: "徒歩9分",
-    memberType: "守成クラブ都城会場会員",
-    specialFeatures: "カフェバー、ライブ対応",
-    owner: "福留 優二"
+   
   },
 
   // 23時まで営業
