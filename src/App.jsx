@@ -167,7 +167,7 @@ function App() {
                 <div className="space-y-2 mt-3">
                   <div className="flex items-center text-sm text-gray-600 mb-2">
                     <MapPin className="w-4 h-4 mr-1" />
-                    <span>{restaurant.station} {restaurant.walkTime}</span>
+                    <span>{restaurant.address}</span>
                   </div>
                   <div className="flex items-center text-sm text-red-600 mb-2">
                     <span className="bg-red-100 px-2 py-1 rounded text-xs font-medium">
