@@ -258,27 +258,7 @@ export const restaurants = [
     specialFeatures: "大人の隠れ家的バー",
     owner: "原田 英治"
   },
-  {
-    id: 13,
-    name: "",
-    genre: "",
-    description: "",
-    address: "宮崎県",
-    latitude: ,
-    longitude: ,
-    phoneNumber: "",
-    openingHours: "20:00",
-    closingDay: "",
-    priceRangeDinner: "￥",
-    capacity: ,
-    imageUrl: "/api/placeholder/300/200",
-    rating: ,
-    station: "",
-    walkTime: "",
-    memberType: "",
-    specialFeatures: "",
-    owner: ""
-  },
+
    
   },
 
