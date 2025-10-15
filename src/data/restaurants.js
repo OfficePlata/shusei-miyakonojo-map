@@ -259,9 +259,6 @@ export const restaurants = [
     owner: "原田 英治"
   },
 
-   
-  },
-
   // 23時まで営業
   {
     id: 14,
