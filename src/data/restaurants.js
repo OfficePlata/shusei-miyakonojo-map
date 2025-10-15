@@ -263,7 +263,7 @@ export const restaurants = [
     name: "",
     genre: "",
     description: "",
-    address: "宮崎県都城市",
+    address: "宮崎県",
     latitude: ,
     longitude: ,
     phoneNumber: "",
