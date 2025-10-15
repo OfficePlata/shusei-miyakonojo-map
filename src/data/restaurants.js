@@ -260,6 +260,25 @@ export const restaurants = [
   },
   {
     id: 13,
+    name: "",
+    genre: "",
+    description: "",
+    address: "宮崎県都城市",
+    latitude: ,
+    longitude: ,
+    phoneNumber: "",
+    openingHours: "20:00",
+    closingDay: "",
+    priceRangeDinner: "￥",
+    capacity: ,
+    imageUrl: "/api/placeholder/300/200",
+    rating: ,
+    station: "",
+    walkTime: "",
+    memberType: "",
+    specialFeatures: "",
+    owner: ""
+  },
    
   },
 
