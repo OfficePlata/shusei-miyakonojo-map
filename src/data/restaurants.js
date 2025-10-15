@@ -264,7 +264,7 @@ export const restaurants = [
     id: 13,
     name: "BAR OK ROCK",
     genre: "バー",
-    description: "男性3500円 女性3000円で飲み放題歌い放題！ダーツ、シーシャもできます！",
+    description: "男性3500円 女性3000円で飲み放題歌い放題！イケメンな店員います（自分とは言ってない）ダーツ、シーシャもできます！",
     address: "宮崎県都城市牟田町11-13コラージュビル2F-1",
     latitude: 31.7271105,
     longitude: 131.0599101,
