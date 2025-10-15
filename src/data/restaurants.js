@@ -261,6 +261,27 @@ export const restaurants = [
 
   // 23時まで営業
   {
+    id: 13,
+    name: "BAR OK ROCK",
+    genre: "バー",
+    description: "男性3500円 女性3000円で飲み放題歌い放題！ダーツ、シーシャもできます！",
+    address: "宮崎県都城市牟田町11-13コラージュビル2F-1",
+    latitude: 31.7271105,
+    longitude: 131.0599101,
+    phoneNumber: "0986-36-6050",
+    openingHours: "21:00～05:00",
+    closingDay: "火曜日",
+    priceRangeDinner: "￥3,000～",
+    capacity: 40,
+    imageUrl: "https://d27rnpuamwvieu.cloudfront.net/0UIYisXFOEmVaME8MKrg83wXX/normal",
+    rating: 3.80,
+    station: "三股駅",
+    walkTime: "徒歩10分",
+    memberType: "守成クラブ都城会場会員",
+    specialFeatures: "イケメンな店員います（自分とは言ってない）",
+    owner: "神坂 春貴"
+  },
+  {
     id: 14,
     name: "炭火焼肉牛輝",
     genre: "焼肉",
