@@ -389,3 +389,13 @@ export const restaurants = [
   owner: "前畑 祐之介"
 }
 ]
+]
+
+// 都市中心の座標
+export const cityCenter = {
+  latitude: 31.7220,
+  longitude: 131.0570
+}
+
+export const venues = []
+
