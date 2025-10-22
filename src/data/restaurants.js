@@ -388,4 +388,4 @@ export const restaurants = [
   specialFeatures: "多彩なメニュー",
   owner: "前畑 祐之介"
 }
-
+]
