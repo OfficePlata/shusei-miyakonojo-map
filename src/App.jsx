@@ -167,13 +167,9 @@ function App() {
                 <div className="space-y-2 mt-3">
                   <div className="flex items-center text-sm text-gray-600 mb-2">
                     <MapPin className="w-4 h-4 mr-1" />
-                    <span>{restaurants.address}</span>
+                    <span>{restaurant.address}</span>
                   </div>
-                  <div className="flex items-center text-sm text-red-600 mb-2">
-                    <span className="bg-red-100 px-2 py-1 rounded text-xs font-medium">
-                      {restaurant.memberType}
-                    </span>
-                  </div>                
+                  
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <span>{restaurant.openingHours}</span>
@@ -191,8 +187,8 @@ function App() {
                       className="flex-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (restaurants.phoneNumber) {
-                          window.open(`tel:${restaurants.phoneNumber}`, '_self');
+                        if (restaurant.phoneNumber) {
+                          window.open(`tel:${restaurant.phoneNumber}`, '_self');
                         } else {
                           alert('電話番号が登録されていません。直接お店にお問い合わせください。');
                         }
