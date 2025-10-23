@@ -262,6 +262,27 @@ export const restaurants = [
 },
 {
   id: 15,
+  name: "焼肉　shin shin",
+  genre: "焼肉",
+  description: "焼肉shin shinでは、宮﨑牛の色々な貴重部位から和牛を中心とした食べ飲み放題120分　飲まない人の為のファミリーセット等多種多彩のコースを準備してます。",
+  address: "宮崎県都城市牟田町10-11 アレザビル1F-G",
+  latitude: 31.7262787,
+  longitude: 131.0591953,
+  phoneNumber: "080-9141-9602",
+  openingHours: "18:00～24:00",
+  closingDay: "火曜日",
+  priceRangeDinner: "￥3,000～￥4,000",
+  capacity: 最大28,
+  imageUrl: "https://storage.shusei-id.com/stores/5506218a-659a-4366-b5fe-94b3f01b01ff/0820f77b-4361-4824-b3e8-090a464bed00.webp",
+  rating: 3.80,
+  station: "三股駅",
+  walkTime: "徒歩12分",
+  memberType: "守成クラブ都城会場会員",
+  specialFeatures: "個室完備、団体対応可能",
+  owner: "深江 真"
+},
+{
+  id: 16,
   name: "ワッキーズ'ダイナー",
   genre: "ダイナー",
   description: "スペアリブを中心に高カロリーで美味いものを揃えています！店内も遊び心イッパイの見て楽しめるお店です！！是非遊びに来て下さい！",
@@ -282,7 +303,7 @@ export const restaurants = [
   owner: "脇田 友一"
 },
 {
-  id: 16,
+  id: 17,
   name: "牡蠣Diningちぇけ",
   genre: "ダイニング",
   description: "新鮮な牡蠣料理が自慢のダイニング。季節の牡蠣を使った創作料理が楽しめる。",
@@ -303,7 +324,7 @@ export const restaurants = [
   owner: "梅原 里美"
 },
 {
-  id: 17,
+  id: 18,
   name: "屋台骨 都城分店",
   genre: "ラーメン・居酒屋",
   description: "宮崎とんこつラーメンと宮崎餃子の人気チェーン店。夜は居酒屋としても営業。",
@@ -326,7 +347,7 @@ export const restaurants = [
 
 // その他の飲食店
 {
-  id: 18,
+  id: 19,
   name: "ラビル",
   genre: "飲食店",
   description: "前畑祐之介オーナーが営む飲食店。多彩なメニューで様々なニーズに対応。",
@@ -347,7 +368,7 @@ export const restaurants = [
   owner: "前畑 祐之介"
 },
 {
-  id: 19,
+  id: 20,
   name: "辛麺屋 物語",
   genre: "飲食店",
   description: "全品テイクアウト可能/全席カウンター/宮崎名物「辛麺」",
@@ -368,7 +389,7 @@ export const restaurants = [
   owner: "神坂 春貴"
 },
 {
-  id: 20,
+  id: 21,
   name: "BAR D-BULL",
   genre: "飲食店",
   description: "楽しく飲んでカラオケ、ダーツで盛り上がります。ダーツマシンを４台完備のDart BAR 飲み放題無制限で長時間楽しめるお店です。結婚式の2次会や新年会や忘年会各種宴会にも最適",
