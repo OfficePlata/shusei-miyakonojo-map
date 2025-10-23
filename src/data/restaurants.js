@@ -143,7 +143,7 @@ export const restaurants = [
   closingDay: "",
   priceRangeDinner: "￥3,000～￥4,999",
   capacity: 15,
-  imageUrl: "https://scontent-itm1-1.cdninstagram.com/v/t51.2885-19/525886379_18146704498400033_723472495937102938_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=scontent-itm1-1.cdninstagram.com&_nc_cat=105&_nc_oc=Q6cZ2QE1vv7B3A7Vuldjebf5BycaBux5V8AbqKmFqhLkh9zZ0WW8t0shpW0N6jfpTPbTA08&_nc_ohc=L9IeQaOUwGUQ7kNvwFtGrWX&_nc_gid=l57UHKuS57iQlokIKRPicw&edm=APoiHPcBAAAA&ccb=7-5&oh=00_AffFt9ycYllWcbbz6N5irKCXJhV_iys63JGQc8DFaWVcqw&oe=68FED1CE&_nc_sid=22de04",
+  imageUrl: "https://storage.shusei-id.com/stores/4dabf082-bd59-488d-b6ab-f674121259fc/a255582e-8102-4dd5-bcf6-c9aa6ed0f78a.webp",
   rating: 3.40,
   station: "西都城駅",
   walkTime: "徒歩11分",
