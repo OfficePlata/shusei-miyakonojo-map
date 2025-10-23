@@ -375,7 +375,7 @@ export const restaurants = [
   address: "宮崎県都城市牟田町７-７ セントレアビル２F",
   latitude: 31.7258378,
   longitude: 131.0594488,
-  phoneNumber: "0986226688",
+  phoneNumber: "0986-22-6688",
   openingHours: "18:00~5:00",
   closingDay: "火曜日",
   priceRangeDinner: "￥2,000〜￥3,000",
