@@ -272,7 +272,7 @@ export const restaurants = [
   openingHours: "18:00～24:00",
   closingDay: "火曜日",
   priceRangeDinner: "￥3,000～￥4,000",
-  capacity: 最大28,
+  capacity: 28,
   imageUrl: "https://storage.shusei-id.com/stores/5506218a-659a-4366-b5fe-94b3f01b01ff/0820f77b-4361-4824-b3e8-090a464bed00.webp",
   rating: 3.80,
   station: "三股駅",
