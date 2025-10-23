@@ -355,7 +355,7 @@ export const restaurants = [
   latitude: 31.7264694,
   longitude: 131.0638145,
   phoneNumber: "0986-36-5549",
-  openingHours: "11:00~15:00分,18:00分~3:00分",
+  openingHours: "11:00~15:00,18:00~3:00",
   closingDay: "火曜日",
   priceRangeDinner: "￥1,000～￥2,000",
   capacity: 22,
@@ -366,6 +366,27 @@ export const restaurants = [
   memberType: "守成クラブ都城会場会員",
   specialFeatures: "人気の辛麺",
   owner: "神坂 春貴"
+},
+{
+  id: 20,
+  name: "BAR D-BULL",
+  genre: "飲食店",
+  description: "楽しく飲んでカラオケ、ダーツで盛り上がります。ダーツマシンを４台完備のDart BAR 飲み放題無制限で長時間楽しめるお店です。結婚式の2次会や新年会や忘年会各種宴会にも最適",
+  address: "宮崎県都城市牟田町７-７ セントレアビル２F",
+  latitude: 31.7258378,
+  longitude: 131.0594488,
+  phoneNumber: "0986226688",
+  openingHours: "18:00~5:00",
+  closingDay: "火曜日",
+  priceRangeDinner: "￥2,000〜￥3,000",
+  capacity: 90,
+  imageUrl: "https://storage.shusei-id.com/stores/1864c2a7-b652-48ad-b163-334c961aea1e/a86491c4-0a2a-49dd-b72f-ddf6127454f1.webp",
+  rating: 3.50,
+  station: "都城駅",
+  walkTime: "徒歩8分",
+  memberType: "守成クラブ都城会場会員",
+  specialFeatures: "ダーツバー",
+  owner: "深江 真"
 }
 ]
 // 都市中心の座標
