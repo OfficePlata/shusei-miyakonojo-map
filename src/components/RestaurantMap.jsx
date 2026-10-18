@@ -1,101 +1,115 @@
-import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Tooltip, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { categoryById } from '../data/taxonomy.js';
 
-// Leafletのデフォルトアイコンの問題を修正
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// カスタムアイコンを作成
-const createCustomIcon = (color) => {
+const pinIcon = (category, active) => {
+  const c = categoryById[category];
   return L.divIcon({
-    className: 'custom-marker',
-    html: `<div style="
-      background-color: ${color};
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    "></div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
+    className: `shusei-pin${active ? ' is-active' : ''}`,
+    html: `<div style="background:${c.color}"><span>${c.emoji}</span></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    tooltipAnchor: [0, -30],
   });
 };
 
-// ジャンル別の色分け
-const getMarkerColor = (genre) => {
-  const colors = {
-    '居酒屋': '#f97316',
-    '焼肉': '#dc2626',
-    'スナック': '#9333ea',
-    'ダイナー': '#2563eb',
-    'バー': '#374151',
-    'カフェバー': '#059669',
-    'ダイニング': '#16a34a',
-    '高級クラブ': '#dc2626',
-    'ナイトスポット': '#7c3aed',
-    'ラーメン・居酒屋': '#ea580c',
-    '飲食店': '#6b7280'
-  };
-  return colors[genre] || '#6b7280';
+const hasSize = (map) => {
+  const { x, y } = map.getSize();
+  return x > 0 && y > 0;
 };
 
-const RestaurantMap = ({ restaurants, selectedRestaurant, onRestaurantSelect, center }) => {
-  const mapRef = useRef();
+const fitTo = (map, restaurants) => {
+  if (restaurants.length === 0 || !hasSize(map)) return;
+  const bounds = L.latLngBounds(restaurants.map((r) => [r.latitude, r.longitude]));
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
+};
+
+// 絞り込み結果が全部入るように表示範囲を合わせる。
+// スマホでは地図が非表示（サイズ0）の間に描画されるので、表示された時点で合わせ直す。
+const FitBounds = ({ restaurants }) => {
+  const map = useMap();
+  const latest = useRef(restaurants);
+  latest.current = restaurants;
+  const key = restaurants.map((r) => r.id).join(',');
 
   useEffect(() => {
-    if (selectedRestaurant && mapRef.current) {
-      const map = mapRef.current;
-      map.setView([selectedRestaurant.latitude, selectedRestaurant.longitude], 16);
+    fitTo(map, latest.current);
+  }, [key, map]);
+
+  useEffect(() => {
+    let wasVisible = hasSize(map);
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+      const visible = hasSize(map);
+      if (visible && !wasVisible) fitTo(map, latest.current);
+      wasVisible = visible;
+    });
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+};
+
+const FlyToSelected = ({ selected }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (selected && hasSize(map)) {
+      map.flyTo([selected.latitude, selected.longitude], Math.max(map.getZoom(), 17), { duration: 0.6 });
     }
-  }, [selectedRestaurant]);
+  }, [selected, map]);
+  return null;
+};
+
+const RestaurantMap = ({ restaurants, selectedRestaurant, onRestaurantSelect, center, userLocation }) => {
+  const icons = useMemo(() => ({}), []);
+  const iconFor = (category, active) => {
+    const k = `${category}-${active}`;
+    return (icons[k] ??= pinIcon(category, active));
+  };
 
   return (
-    <div className="h-96 w-full rounded-lg overflow-hidden shadow-md">
-      <MapContainer
-        center={[center.latitude, center.longitude]}
-        zoom={14}
-        style={{ height: '100%', width: '100%' }}
-        ref={mapRef}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {restaurants.map((restaurant) => (
+    <MapContainer
+      center={[center.latitude, center.longitude]}
+      zoom={15}
+      style={{ height: '100%', width: '100%' }}
+      scrollWheelZoom
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <FitBounds restaurants={restaurants} />
+      <FlyToSelected selected={selectedRestaurant} />
+
+      {userLocation && (
+        <CircleMarker
+          center={[userLocation.latitude, userLocation.longitude]}
+          radius={8}
+          pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#DD6420', fillOpacity: 1 }}
+        >
+          <Tooltip>現在地</Tooltip>
+        </CircleMarker>
+      )}
+
+      {restaurants.map((restaurant) => {
+        const active = selectedRestaurant?.id === restaurant.id;
+        return (
           <Marker
             key={restaurant.id}
             position={[restaurant.latitude, restaurant.longitude]}
-            icon={createCustomIcon(getMarkerColor(restaurant.genre))}
-            eventHandlers={{
-              click: () => onRestaurantSelect(restaurant)
-            }}
+            icon={iconFor(restaurant.category, active)}
+            zIndexOffset={active ? 1000 : 0}
+            eventHandlers={{ click: () => onRestaurantSelect(restaurant) }}
           >
-            <Popup>
-              <div className="p-2">
-                <h3 className="font-bold text-sm">{restaurant.name}</h3>
-                <p className="text-xs text-gray-600">{restaurant.genre}</p>
-                <p className="text-xs">{restaurant.openingHours}</p>
-                <p className="text-xs">{restaurant.priceRangeDinner}</p>
-                <button 
-                  className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                  onClick={() => onRestaurantSelect(restaurant)}
-                >
-                  詳細を見る
-                </button>
-              </div>
-            </Popup>
+            <Tooltip direction="top">
+              <strong>{restaurant.name}</strong>
+            </Tooltip>
           </Marker>
-        ))}
-      </MapContainer>
-    </div>
+        );
+      })}
+    </MapContainer>
   );
 };
 

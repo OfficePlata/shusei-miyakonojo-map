@@ -33,7 +33,7 @@ export const restaurants = [
   longitude: 131.0601213,
   phoneNumber: "0986-25-1292",
   openingHours: "20:00～25:00",
-  closingDay: "0986-26-3242",
+  closingDay: "",
   priceRangeDinner: "￥8,000～￥12,000",
   capacity: 20,
   imageUrl: "/api/placeholder/300/200",
@@ -370,7 +370,7 @@ export const restaurants = [
 {
   id: 20,
   name: "辛麺屋 物語",
-  genre: "飲食店",
+  genre: "ラーメン・辛麺",
   description: "全品テイクアウト可能/全席カウンター/宮崎名物「辛麺」",
   address: "宮崎県都城市中町５−１５ 第二中元ビル １F",
   latitude: 31.7264694,
@@ -391,7 +391,7 @@ export const restaurants = [
 {
   id: 21,
   name: "BAR D-BULL",
-  genre: "飲食店",
+  genre: "ダーツバー",
   description: "楽しく飲んでカラオケ、ダーツで盛り上がります。ダーツマシンを４台完備のDart BAR 飲み放題無制限で長時間楽しめるお店です。結婚式の2次会や新年会や忘年会各種宴会にも最適",
   address: "宮崎県都城市牟田町７-７ セントレアビル２F",
   latitude: 31.7258378,
