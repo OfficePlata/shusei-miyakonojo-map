@@ -1,325 +1,575 @@
-import { useState, useMemo } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Search, MapPin, Clock, Users, Phone, Map } from 'lucide-react';
-import { restaurants, venues, cityCenter } from './data/restaurants.js'
-import RestaurantMap from './components/RestaurantMap.jsx'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone } from 'lucide-react'
+import { cityCenter } from './data/restaurants.js'
+import { SCENES, CATEGORIES, PRICE_BANDS, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
+import { NEEDS, needById, memberMarker, buildDirectory } from './data/memberTaxonomy.js'
+import { fetchMemberMap, PORTAL_URL } from './data/portal.js'
+import MapView from './components/MapView.jsx'
+import { Chip, EntryButton } from './components/common.jsx'
+import { distanceKm } from './lib/geo.js'
+import { StoreCard, StoreDetail } from './components/StoreParts.jsx'
+import { MemberCard, MemberDetail } from './components/MemberParts.jsx'
 import './App.css'
 
-function App() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedGenre, setSelectedGenre] = useState('all')
-  const [selectedPriceRange, setSelectedPriceRange] = useState('all')
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null)
-  const [showMap, setShowMap] = useState(false)
+const MODES = [
+  { id: 'members', label: '会員をさがす', icon: <Users className="h-4 w-4" /> },
+  { id: 'stores', label: 'お店をさがす', icon: <UtensilsCrossed className="h-4 w-4" /> },
+]
 
-  // ジャンルの一覧を取得
-  const genres = [...new Set(restaurants.map(r => r.genre))]
-  
-  // 価格帯の一覧を取得
-  const priceRanges = [...new Set(restaurants.map(r => r.priceRangeDinner).filter(Boolean))]
+const STORE_SORTS = [
+  { id: 'default', label: 'おすすめ順' },
+  { id: 'late', label: '遅くまで営業' },
+  { id: 'near', label: '現在地から近い' },
+]
 
-  // フィルタリングされたレストラン
-  const filteredRestaurants = useMemo(() => {
-    return restaurants.filter(restaurant => {
-      const matchesSearch = restaurant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          restaurant.description.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesGenre = selectedGenre === 'all' || restaurant.genre === selectedGenre
-      const matchesPriceRange = selectedPriceRange === 'all' || restaurant.priceRangeDinner === selectedPriceRange
-      
-      return matchesSearch && matchesGenre && matchesPriceRange
-    })
-  }, [searchTerm, selectedGenre, selectedPriceRange])
+// 会員はポータルからフリガナ順で届く
+const MEMBER_SORTS = [
+  { id: 'default', label: 'あいうえお順' },
+  { id: 'photo', label: '写真のある人から' },
+  { id: 'near', label: '現在地から近い' },
+]
 
-  // ジャンル別の色分け
-  const getGenreColor = (genre) => {
-    const colors = {
-      '居酒屋': 'bg-orange-100 text-orange-800',
-      '焼肉': 'bg-red-100 text-red-800',
-      'スナック': 'bg-purple-100 text-purple-800',
-      'ダイナー': 'bg-blue-100 text-blue-800',
-      'バー': 'bg-gray-100 text-gray-800',
-      'ダイニング': 'bg-green-100 text-green-800'
+
+// ── URL ⇔ 絞り込み条件（「三部会のお店」「住まいの相談」リンクをそのまま共有できる） ──
+const readParams = ({ areas, memberById, storeById }) => {
+  const p = new URLSearchParams(window.location.search)
+  const list = (k) => (p.get(k) ? p.get(k).split(',') : [])
+  const scene = sceneById[p.get('scene')] ? p.get('scene') : null
+  const categories = list('type').filter((c) => categoryById[c])
+  const member = memberById[p.get('member')] ?? null
+  const store = storeById[p.get('store')] ?? null
+  const storeHint = scene || categories.length || store || p.get('area') || p.get('price')
+  return {
+    mode: p.get('mode') === 'stores' || (p.get('mode') !== 'members' && storeHint) ? 'stores' : 'members',
+    need: needById[p.get('need')] ? p.get('need') : null,
+    scene,
+    categories,
+    area: areas.includes(p.get('area')) ? p.get('area') : null,
+    price: PRICE_BANDS.some((b) => b.id === p.get('price')) ? p.get('price') : null,
+    q: p.get('q') ?? '',
+    selected: member ? { type: 'member', item: member } : store ? { type: 'store', item: store } : null,
+  }
+}
+
+const writeParams = ({ mode, need, scene, categories, area, price, q, selected }) => {
+  const p = new URLSearchParams()
+  if (mode === 'stores') {
+    p.set('mode', 'stores')
+    if (scene) p.set('scene', scene)
+    if (categories.length) p.set('type', categories.join(','))
+    if (area) p.set('area', area)
+    if (price) p.set('price', price)
+  } else if (need) p.set('need', need)
+  if (q) p.set('q', q)
+  if (selected) p.set(selected.type, selected.item.id)
+  const qs = p.toString()
+  window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+}
+
+const formatMeetingDate = (ms) => {
+  if (!ms) return ''
+  const d = new Date(ms)
+  return `（${d.getMonth() + 1}/${d.getDate()}）`
+}
+
+const copyOrShare = async (title, url) => {
+  if (navigator.share) {
+    await navigator.share({ title, url })
+    return false
+  }
+  await navigator.clipboard.writeText(url)
+  return true
+}
+
+// ポータルから会員と三部会の店を読み、読めなければ同梱のデータで動かす
+const useMapData = () => {
+  const [state, setState] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const done = (portal) => {
+      if (!alive) return
+      const stores = buildStores(portal?.shops ?? [])
+      setState({
+        stores,
+        directory: buildDirectory(portal?.members ?? null, stores),
+        meeting: portal?.meeting ?? null,
+        live: Boolean(portal),
+      })
     }
-    return colors[genre] || 'bg-gray-100 text-gray-800'
+    fetchMemberMap().then(done, (err) => {
+      console.warn('ポータルを読めなかったため同梱データで表示します', err)
+      done(null)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return state
+}
+
+function App() {
+  const data = useMapData()
+  if (!data) {
+    return (
+      <div className="grid h-dvh place-items-center text-paper">
+        <p className="font-display text-xl">守成クラブ都城MAP</p>
+      </div>
+    )
+  }
+  return <Finder {...data} />
+}
+
+function Finder({ stores, directory, meeting, live }) {
+  const areas = useMemo(() => areasOf(stores), [stores])
+  const storeById = useMemo(() => Object.fromEntries(stores.map((s) => [String(s.id), s])), [stores])
+  const memberById = useMemo(() => Object.fromEntries(directory.map((m) => [m.id, m])), [directory])
+  const ownerOf = (store) => directory.find((m) => m.linkedStores.some((s) => s.id === store.id))
+  const initial = useMemo(() => readParams({ areas, memberById, storeById }), [areas, memberById, storeById])
+  const [mode, setMode] = useState(initial.mode)
+  const [need, setNeed] = useState(initial.need)
+  const [scene, setScene] = useState(initial.scene)
+  const [categories, setCategories] = useState(initial.categories)
+  const [area, setArea] = useState(initial.area)
+  const [price, setPrice] = useState(initial.price)
+  const [searchTerm, setSearchTerm] = useState(initial.q)
+  const [storeSort, setStoreSort] = useState('default')
+  const [memberSort, setMemberSort] = useState('default')
+  const [selected, setSelected] = useState(initial.selected)
+  const [mobileView, setMobileView] = useState('list')
+  const [userLocation, setUserLocation] = useState(null)
+  const [locating, setLocating] = useState(false)
+  const [copied, setCopied] = useState(null)
+
+  useEffect(() => {
+    writeParams({ mode, need, scene, categories, area, price, q: searchTerm, selected })
+  }, [mode, need, scene, categories, area, price, searchTerm, selected])
+
+  const flash = (key) => {
+    setCopied(key)
+    setTimeout(() => setCopied(null), 1800)
   }
 
-  // 価格帯別の色分け
-  const getPriceColor = (priceRange) => {
-    if (!priceRange) return 'bg-gray-100 text-gray-800'
-    if (priceRange.includes('3,000')) return 'bg-green-100 text-green-800'
-    if (priceRange.includes('4,000')) return 'bg-yellow-100 text-yellow-800'
-    if (priceRange.includes('5,000')) return 'bg-orange-100 text-orange-800'
-    return 'bg-red-100 text-red-800'
+  const locate = useCallback(() => {
+    if (!navigator.geolocation) return alert('この端末では現在地を取得できません')
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setUserLocation({ latitude: coords.latitude, longitude: coords.longitude })
+        setStoreSort('near')
+        setMemberSort('near')
+        setLocating(false)
+      },
+      () => {
+        alert('現在地を取得できませんでした。位置情報の許可を確認してください。')
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }, [])
+
+  const switchMode = (id) => {
+    setMode(id)
+    setSelected(null)
+    setSearchTerm('')
   }
+
+  const openStore = (store) => {
+    setMode('stores')
+    setSelected({ type: 'store', item: store })
+  }
+  const openMember = (member) => {
+    setMode('members')
+    setSelected({ type: 'member', item: member })
+  }
+
+  const toggleCategory = (id) =>
+    setCategories((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]))
+
+  const resetFilters = () => {
+    if (mode === 'stores') {
+      setScene(null)
+      setCategories([])
+      setArea(null)
+      setPrice(null)
+    } else setNeed(null)
+    setSearchTerm('')
+  }
+
+  const distances = useMemo(() => {
+    if (!userLocation) return {}
+    const d = {}
+    for (const s of stores) d[`store-${s.id}`] = distanceKm(userLocation, s)
+    for (const m of directory) if (m.hasLocation) d[`member-${m.id}`] = distanceKm(userLocation, m)
+    return d
+  }, [userLocation, stores, directory])
+
+  const q = searchTerm.trim().toLowerCase()
+
+  const filteredStores = useMemo(() => {
+    const list = stores.filter((s) => {
+      if (scene && !s.scenes.includes(scene)) return false
+      if (categories.length && !categories.includes(s.category)) return false
+      if (area && s.area !== area) return false
+      if (price && s.priceBand !== price) return false
+      if (q && ![s.name, s.genre, s.description, s.specialFeatures, s.owner, s.address].join(' ').toLowerCase().includes(q))
+        return false
+      return true
+    })
+    if (storeSort === 'late') return [...list].sort((a, b) => (b.closeHour ?? 0) - (a.closeHour ?? 0))
+    if (storeSort === 'near' && userLocation)
+      return [...list].sort((a, b) => distances[`store-${a.id}`] - distances[`store-${b.id}`])
+    return list
+  }, [stores, scene, categories, area, price, q, storeSort, userLocation, distances])
+
+  const filteredMembers = useMemo(() => {
+    const list = directory.filter((m) => {
+      if (need && !m.needs.includes(need)) return false
+      if (q && ![m.name, m.company, m.industry, m.description, ...(m.services ?? [])].join(' ').toLowerCase().includes(q))
+        return false
+      return true
+    })
+    if (memberSort === 'photo') return [...list].sort((a, b) => Number(Boolean(b.photo)) - Number(Boolean(a.photo)))
+    if (memberSort === 'near' && userLocation) {
+      const d = (m) => distances[`member-${m.id}`] ?? Infinity
+      return [...list].sort((a, b) => d(a) - d(b))
+    }
+    return list
+  }, [directory, need, q, memberSort, userLocation, distances])
+
+  const isStores = mode === 'stores'
+  const mapItems = isStores ? filteredStores : filteredMembers.filter((m) => m.hasLocation)
+  const resultCount = isStores ? filteredStores.length : filteredMembers.length
+  const activeFilterCount = isStores
+    ? [scene, area, price, searchTerm].filter(Boolean).length + categories.length
+    : [need, searchTerm].filter(Boolean).length
+  const sorts = isStores ? STORE_SORTS : MEMBER_SORTS
+  const sort = isStores ? storeSort : memberSort
+  const setSort = isStores ? setStoreSort : setMemberSort
+  const selectedItem = selected && (selected.type === 'store') === isStores ? selected.item : null
+  const distanceOf = (type, item) => distances[`${type}-${item.id}`]
+
+  const changeSort = (id) => {
+    if (id === 'near' && !userLocation) return locate()
+    setSort(id)
+  }
+
+  const sharePage = async () => {
+    const label = isStores ? (scene ? `｜${sceneById[scene].label}のお店` : '') : need ? `｜${needById[need].label}の会員` : ''
+    try {
+      if (await copyOrShare(`守成クラブ都城MAP${label}`, window.location.href)) flash('page')
+    } catch {
+      // 共有をキャンセルした場合は何もしない
+    }
+  }
+
+  const shareMember = async (member) => {
+    const url = `${window.location.origin}${window.location.pathname}?member=${member.id}`
+    try {
+      if (await copyOrShare(`${member.name}さん（${member.company}）｜守成クラブ都城MAP`, url)) flash(member.id)
+    } catch {
+      // 共有をキャンセルした場合は何もしない
+    }
+  }
+
+  const select = (item) => setSelected({ type: isStores ? 'store' : 'member', item })
+  const closeDetail = () => setSelected(null)
+
+  const detail = selectedItem
+    ? isStores
+      ? (
+        <StoreDetail
+          store={selectedItem}
+          distance={distanceOf('store', selectedItem)}
+          owner={ownerOf(selectedItem)}
+          onOpenOwner={openMember}
+          onClose={closeDetail}
+        />
+      )
+      : (
+        <MemberDetail
+          member={selectedItem}
+          distance={distanceOf('member', selectedItem)}
+          onOpenStore={openStore}
+          onShare={() => shareMember(selectedItem)}
+          shared={copied === selectedItem.id}
+          onClose={closeDetail}
+        />
+      )
+    : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex h-dvh flex-col overflow-hidden">
       {/* ヘッダー */}
-      <header className="bg-red-600 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">守成クラブ都城会場</h1>
-              <p className="text-red-100 mt-1">会員店舗 三部会マップ</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-red-100">22時以降営業 会員店舗</p>
-              <p className="text-lg font-semibold">信頼でつなぐ商売繁盛の絆</p>
-            </div>
+      <header className="shrink-0 px-4 pb-3 pt-4 text-paper md:px-6">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-brand">信頼でつなぐ商売繁盛の絆</p>
+            <h1 className="font-display text-2xl leading-tight md:text-3xl">守成クラブ都城MAP</h1>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full bg-paper/15 px-3 py-1 text-xs font-bold sm:inline">
+              宮崎県・都城会場 在籍会員
+            </span>
+            <button
+              type="button"
+              onClick={sharePage}
+              className="flex items-center gap-1 rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-ink"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              {copied === 'page' ? 'コピーしました' : '共有'}
+            </button>
+          </div>
+        </div>
+
+        {/* モード切替 */}
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl bg-ink/25 p-1 md:inline-grid md:w-[440px]">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => switchMode(m.id)}
+              aria-pressed={mode === m.id}
+              className={`flex items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-black transition ${
+                mode === m.id ? 'bg-paper text-ink shadow' : 'text-paper hover:bg-paper/10'
+              }`}
+            >
+              {m.icon}
+              {m.label}
+              <span className={`text-xs ${mode === m.id ? 'text-shusei' : 'text-brand'}`}>
+                {m.id === 'members' ? directory.length : stores.length}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* 入口：会員＝困りごと／お店＝シーン */}
+        <p className="mt-3 text-xs font-bold text-paper/90">
+          {isStores ? 'どんな場面で使う？' : 'こんな時、会員さんに相談しよう'}
+        </p>
+        <div className="no-scrollbar -mx-4 mt-1.5 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+          {isStores
+            ? SCENES.map((s) => (
+              <EntryButton
+                key={s.id}
+                {...s}
+                active={scene === s.id}
+                count={stores.filter((st) => st.scenes.includes(s.id)).length}
+                onClick={() => setScene(scene === s.id ? null : s.id)}
+              />
+            ))
+            : NEEDS.map((n) => (
+              <EntryButton
+                key={n.id}
+                {...n}
+                active={need === n.id}
+                count={directory.filter((m) => m.needs.includes(n.id)).length}
+                onClick={() => setNeed(need === n.id ? null : n.id)}
+              />
+            ))}
         </div>
       </header>
 
-      {/* メインコンテンツ */}
-      <div className="container mx-auto px-4 py-8">
-        {/* 検索・フィルター */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:gap-4 md:px-6 md:pb-6">
+        {/* 左：絞り込み＋リスト */}
+        <section
+          className={`flex min-h-0 flex-1 flex-col md:w-[440px] md:flex-none ${mobileView === 'map' ? 'hidden md:flex' : 'flex'}`}
+        >
+          <div className="space-y-2 px-4 pb-2 md:px-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="店名・説明で検索"
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/50" />
+              <input
+                type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                placeholder={isStores ? '店名・会員名・キーワードで検索' : '「リフォーム」「名入れ」など、やりたいことで検索'}
+                className="w-full rounded-xl border-2 border-ink bg-paper py-2 pl-9 pr-3 text-sm font-medium outline-none focus:shadow-[3px_3px_0_#FFD600]"
               />
             </div>
-            
-            <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-              <SelectTrigger>
-                <SelectValue placeholder="すべてのジャンル" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべてのジャンル</SelectItem>
-                {genres.map(genre => (
-                  <SelectItem key={genre} value={genre}>{genre}</SelectItem>
+            {isStores && (
+              <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
+                {CATEGORIES.map((c) => (
+                  <Chip key={c.id} active={categories.includes(c.id)} onClick={() => toggleCategory(c.id)}>
+                    {c.emoji} {c.label}
+                  </Chip>
                 ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedPriceRange} onValueChange={setSelectedPriceRange}>
-              <SelectTrigger>
-                <SelectValue placeholder="すべての価格帯" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべての価格帯</SelectItem>
-                {priceRanges.map(range => (
-                  <SelectItem key={range} value={range}>{range}</SelectItem>
+                {PRICE_BANDS.map((b) => (
+                  <Chip key={b.id} active={price === b.id} onClick={() => setPrice(price === b.id ? null : b.id)}>
+                    {b.label}
+                  </Chip>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="mb-6 flex justify-between items-center">
-          <p className="text-gray-600">{filteredRestaurants.length}件の会員店舗が見つかりました</p>
-          <Button
-            variant={showMap ? "default" : "outline"}
-            onClick={() => setShowMap(!showMap)}
-            className="flex items-center gap-2"
-          >
-            <Map className="w-4 h-4" />
-            {showMap ? "リスト表示" : "マップ表示"}
-          </Button>
-        </div>
-
-        {/* マップ表示 */}
-        {showMap && (
-          <div className="mb-8">
-            <RestaurantMap
-              restaurants={filteredRestaurants}
-              selectedRestaurant={selectedRestaurant}
-              onRestaurantSelect={setSelectedRestaurant}
-              center={cityCenter}
-            />
-          </div>
-        )}
-
-        {/* 店舗一覧 */}
-        {!showMap && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRestaurants.map(restaurant => (
-            <Card key={restaurant.id} className="hover:shadow-lg transition-shadow duration-300 cursor-pointer"
-                  onClick={() => setSelectedRestaurant(restaurant)}>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{restaurant.name}</CardTitle>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Badge className={getGenreColor(restaurant.genre)}>
-                    {restaurant.genre}
-                  </Badge>
-                  <Badge className={getPriceColor(restaurant.priceRangeDinner)}>
-                    {restaurant.priceRangeDinner}
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-3">
-                <CardDescription className="text-sm">
-                  {restaurant.description}
-                </CardDescription>
-                
-                <div className="space-y-2 mt-3">
-                  <div className="flex items-center text-sm text-gray-600 mb-2">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    <span>{restaurant.address}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span>{restaurant.openingHours}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    <span>最大{restaurant.capacity}名</span>
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (restaurant.phoneNumber) {
-                          window.open(`tel:${restaurant.phoneNumber}`, '_self');
-                        } else {
-                          alert('電話番号が登録されていません。直接お店にお問い合わせください。');
-                        }
-                      }}
-                    >
-                      <Phone className="w-4 h-4 mr-1" />
-                      電話予約
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          </div>
-        )}
-
-        {/* モーダル */}
-        {selectedRestaurant && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-               onClick={() => setSelectedRestaurant(null)}>
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-                 onClick={(e) => e.stopPropagation()}>
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedRestaurant.name}</h2>
-                    <p className="text-gray-600 mt-1">{selectedRestaurant.description}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedRestaurant(null)}
-                    className="text-gray-400 hover:text-gray-600 text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <img 
-                      src={selectedRestaurant.imageUrl} 
-                      alt={selectedRestaurant.name}
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge className={getGenreColor(selectedRestaurant.genre)}>
-                        {selectedRestaurant.genre}
-                      </Badge>
-                      <Badge className={getPriceColor(selectedRestaurant.priceRangeDinner)}>
-                        {selectedRestaurant.priceRangeDinner}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>{selectedRestaurant.address}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{selectedRestaurant.openingHours}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span>最大{selectedRestaurant.capacity}名</span>
-                      </div>
-                      
-                      {selectedRestaurant.phoneNumber && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          <span>{selectedRestaurant.phoneNumber}</span>
-                        </div>
-                      )}
-                      
-                      <div>
-                        <p className="font-medium">価格帯</p>
-                        <p className="text-sm text-gray-600">ディナー: {selectedRestaurant.priceRangeDinner}</p>
-                        {selectedRestaurant.priceRangeLunch && (
-                          <p className="text-sm text-gray-600">ランチ: {selectedRestaurant.priceRangeLunch}</p>
-                        )}
-                      </div>
-                      
-                      {selectedRestaurant.closingDay && (
-                        <div>
-                          <p className="font-medium">定休日</p>
-                          <p className="text-gray-600">{selectedRestaurant.closingDay}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex gap-2 mt-6">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => {
-                      if (selectedRestaurant.phoneNumber) {
-                        window.open(`tel:${selectedRestaurant.phoneNumber}`, '_self');
-                      } else {
-                        alert('電話番号が登録されていません。直接お店にお問い合わせください。');
-                      }
-                    }}
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    電話で予約・問い合わせ
-                  </Button>
-                </div>
               </div>
+            )}
+            <div className="flex items-center gap-2">
+              {isStores && (
+                <select
+                  value={area ?? ''}
+                  onChange={(e) => setArea(e.target.value || null)}
+                  aria-label="エリア"
+                  className="min-w-0 flex-1 rounded-xl border-2 border-ink bg-paper px-2 py-1.5 text-sm font-bold"
+                >
+                  <option value="">📍 すべてのエリア</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>
+                      {a}（{stores.filter((s) => s.area === a).length}）
+                    </option>
+                  ))}
+                </select>
+              )}
+              <select
+                value={sort}
+                onChange={(e) => changeSort(e.target.value)}
+                aria-label="並び順"
+                className={`rounded-xl border-2 border-ink bg-paper px-2 py-1.5 text-sm font-bold ${isStores ? '' : 'ml-auto'}`}
+              >
+                {sorts.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between text-sm font-bold text-paper">
+              <span>
+                <span className="font-display text-lg">{resultCount}</span> {isStores ? '件' : '人'}
+                {isStores && scene && <span className="ml-1">（{sceneById[scene].label}向け）</span>}
+                {!isStores && need && <span className="ml-1">（{needById[need].label}）</span>}
+              </span>
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={resetFilters} className="text-xs underline underline-offset-2">
+                  条件をクリア
+                </button>
+              )}
             </div>
           </div>
-        )}
+
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-24 md:px-0 md:pb-0 md:pr-1">
+            {isStores && scene === 'sanbukai' && (
+              <div className="rounded-2xl bg-ink p-3 text-xs font-medium leading-relaxed text-paper">
+                <p className="text-sm font-black text-brand">🏮 三部会のお店</p>
+                {live ? (
+                  <p className="mt-1">
+                    {meeting ? `${meeting.name}${formatMeetingDate(meeting.startAt)}` : '次回例会'}
+                    に出席する赤バッジ以上の会員のお店です（牟田町周辺・都城駅周辺）。出欠の回答に合わせて自動で入れ替わります。
+                  </p>
+                ) : (
+                  <p className="mt-1">会員データに接続できないため、いまは三部会の判定ができません。時間をおいて開き直してください。</p>
+                )}
+              </div>
+            )}
+            {isStores
+              ? filteredStores.map((store) => (
+                <StoreCard
+                  key={store.id}
+                  store={store}
+                  scene={scene}
+                  selected={selectedItem?.id === store.id}
+                  distance={distanceOf('store', store)}
+                  onSelect={select}
+                />
+              ))
+              : filteredMembers.map((member) => (
+                <MemberCard
+                  key={member.id}
+                  member={member}
+                  need={need}
+                  selected={selectedItem?.id === member.id}
+                  distance={distanceOf('member', member)}
+                  onSelect={select}
+                />
+              ))}
+            {resultCount === 0 && (
+              <div className="rounded-2xl bg-paper p-6 text-center text-sm font-bold">
+                {isStores ? '条件に合うお店がありません' : 'この分野の会員さんはまだ掲載されていません'}
+                <button type="button" onClick={resetFilters} className="mt-3 block w-full rounded-xl bg-ink py-2 text-brand">
+                  条件をクリア
+                </button>
+              </div>
+            )}
+            {!isStores && (
+              <div className="flex gap-3 rounded-2xl border-2 border-dashed border-paper/70 p-4 text-paper">
+                <Megaphone className="h-5 w-5 shrink-0 text-brand" />
+                <p className="text-xs font-medium leading-relaxed">
+                  <span className="block text-sm font-black">住所・電話番号も載せませんか？</span>
+                  セワニンジャ・ポータルのホーム「守成クラブ都城MAPの公開設定」で公開にすると、地図にピンが立ち、会員さんから直接連絡が来るようになります。
+                  <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="mt-2 block font-black text-brand underline underline-offset-2">
+                    ポータルを開く →
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 右：地図 */}
+        <section
+          className={`relative min-h-0 flex-1 overflow-hidden md:rounded-3xl md:border-2 md:border-ink ${
+            mobileView === 'list' ? 'hidden md:block' : 'block'
+          }`}
+        >
+          <MapView
+            items={mapItems}
+            selected={selectedItem}
+            onSelect={select}
+            markerOf={isStores ? storeMarker : memberMarker}
+            center={cityCenter}
+            userLocation={userLocation}
+          />
+          <button
+            type="button"
+            onClick={locate}
+            aria-label="現在地を表示"
+            className="absolute right-3 top-3 z-[500] grid h-10 w-10 place-items-center rounded-full border-2 border-ink bg-paper shadow"
+          >
+            <LocateFixed className={`h-5 w-5 ${locating ? 'animate-pulse text-shusei' : ''}`} />
+          </button>
+          <div className="absolute left-14 top-3 z-[500] flex max-w-[calc(100%-7.5rem)] flex-wrap gap-x-2 gap-y-0.5 rounded-xl bg-paper/95 px-2 py-1 text-[11px] font-bold shadow md:bottom-3 md:left-3 md:top-auto">
+            {isStores
+              ? CATEGORIES.map((c) => (
+                <span key={c.id} className="inline-flex items-center gap-1">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />
+                  {c.label}
+                </span>
+              ))
+              : (
+                <span>
+                  地図に出るのは所在地を登録した会員のみ（{mapItems.length}／{filteredMembers.length}人）
+                </span>
+              )}
+          </div>
+
+          {/* PC：地図の上に詳細パネル */}
+          {detail && <div className="absolute bottom-4 right-4 top-16 z-[600] hidden w-[360px] md:block">{detail}</div>}
+        </section>
       </div>
 
-      {/* フッター */}
-      <footer className="bg-gray-800 text-white py-8 mt-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">守成クラブ都城会場</h3>
-            <p className="text-gray-300 mb-4">信頼でつなぐ商売繁盛の絆</p>
-            <div className="space-y-1 text-sm text-gray-400">
-              <p>例会: 毎月第4木曜日 18:00～21:00</p>
-              <p>会場: グランドパティオ都城・ロイヤルホテル</p>
-            </div>
+      {/* スマホ：地図／リスト切替 */}
+      <div className="fixed bottom-5 left-1/2 z-[700] flex -translate-x-1/2 rounded-full border-2 border-ink bg-paper p-1 shadow-lg md:hidden">
+        {[
+          { id: 'list', label: 'リスト', icon: <List className="h-4 w-4" /> },
+          { id: 'map', label: '地図', icon: <MapIcon className="h-4 w-4" /> },
+        ].map(({ id, label, icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobileView(id)}
+            className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-black ${
+              mobileView === id ? 'bg-ink text-brand' : 'text-ink'
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* スマホ：詳細ボトムシート */}
+      {detail && (
+        <div className="fixed inset-0 z-[800] flex items-end bg-ink/50 md:hidden" onClick={closeDetail}>
+          <div className="max-h-[85dvh] w-full" onClick={(e) => e.stopPropagation()}>
+            {detail}
           </div>
         </div>
-      </footer>
+      )}
     </div>
   )
 }

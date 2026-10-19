@@ -118,3 +118,41 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── 守成クラブ都城MAP ブランドトークン（背景は守成レッド） ── */
+@theme {
+  --color-shusei: #C8161D;
+  --color-brand: #FFD600;
+  --color-brand-sub: #F5A623;
+  --color-brand-accent: #DD6420;
+  --color-ink: #1A1A1A;
+  --color-paper: #FFFFFF;
+  --font-display: "Dela Gothic One", "Noto Sans JP", sans-serif;
+  --font-sans: "Noto Sans JP", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-shusei);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 地図ピン */
+.shusei-pin { background: none; border: none; }
+.shusei-pin > div {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgb(26 26 26 / 0.35);
+  transition: transform 0.15s;
+}
+.shusei-pin > div > span { transform: rotate(45deg); font-size: 14px; line-height: 1; }
+.shusei-pin.is-active > div { transform: rotate(-45deg) scale(1.35); border-color: #1A1A1A; }
+.leaflet-container { font-family: var(--font-sans); }
