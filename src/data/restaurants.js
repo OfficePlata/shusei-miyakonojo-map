@@ -91,27 +91,6 @@ export const restaurants = [
   owner: "森高 海奈"
 },
 {
-  id: 6,
-  name: "snack Tiana",
-  genre: "スナック",
-  description: "黒と赤を基調にした上品でモダンな空間。落ち着いた照明の中、母娘で営業しています。おしゃれで居心地のよい雰囲気の中、初めての方も安心して楽しめるスナックです。",
-  address: "宮崎県都城市牟田町9街区5号 ナカムラセブンビル1階6号室",
-  latitude: 31.725945,
-  longitude: 131.062912,
-  phoneNumber: "080-3902-6122",
-  openingHours: "20:00～深夜",
-  closingDay: "",
-  priceRangeDinner: "￥3,000～￥4,999",
-  capacity: 16,
-  imageUrl: "https://storage.shusei-id.com/stores/dffbdf99-8518-402b-929b-2d6ab6f59e47/7a88b727-9214-43c0-b09a-65e4dfdac3fd.webp",
-  rating: 3.50,
-  station: "西都城駅",
-  walkTime: "徒歩9分",
-  memberType: "守成クラブ都城会場会員",
-  specialFeatures: "モダンな内装、若い世代に人気",
-  owner: "武藤 綾乃"
-},
-{
   id: 8,
   name: "月の華",
   genre: "スナック",
