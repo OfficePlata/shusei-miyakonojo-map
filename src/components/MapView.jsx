@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Tooltip, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { categoryById } from '../data/taxonomy.js';
 
-const pinIcon = (category, active) => {
-  const c = categoryById[category];
+// marker = { color, emoji }
+const pinIcon = (c, active) => {
   return L.divIcon({
     className: `shusei-pin${active ? ' is-active' : ''}`,
     html: `<div style="background:${c.color}"><span>${c.emoji}</span></div>`,
@@ -20,19 +19,19 @@ const hasSize = (map) => {
   return x > 0 && y > 0;
 };
 
-const fitTo = (map, restaurants) => {
-  if (restaurants.length === 0 || !hasSize(map)) return;
-  const bounds = L.latLngBounds(restaurants.map((r) => [r.latitude, r.longitude]));
+const fitTo = (map, items) => {
+  if (items.length === 0 || !hasSize(map)) return;
+  const bounds = L.latLngBounds(items.map((r) => [r.latitude, r.longitude]));
   map.fitBounds(bounds, { padding: [40, 40], maxZoom: 17 });
 };
 
 // 絞り込み結果が全部入るように表示範囲を合わせる。
 // スマホでは地図が非表示（サイズ0）の間に描画されるので、表示された時点で合わせ直す。
-const FitBounds = ({ restaurants }) => {
+const FitBounds = ({ items }) => {
   const map = useMap();
-  const latest = useRef(restaurants);
-  latest.current = restaurants;
-  const key = restaurants.map((r) => r.id).join(',');
+  const latest = useRef(items);
+  latest.current = items;
+  const key = items.map((r) => r.id).join(',');
 
   useEffect(() => {
     fitTo(map, latest.current);
@@ -62,11 +61,13 @@ const FlyToSelected = ({ selected }) => {
   return null;
 };
 
-const RestaurantMap = ({ restaurants, selectedRestaurant, onRestaurantSelect, center, userLocation }) => {
+// items: { id, name, latitude, longitude } の配列。markerOf(item) でピンの色と絵文字を決める
+const MapView = ({ items, selected, onSelect, markerOf, center, userLocation }) => {
   const icons = useMemo(() => ({}), []);
-  const iconFor = (category, active) => {
-    const k = `${category}-${active}`;
-    return (icons[k] ??= pinIcon(category, active));
+  const iconFor = (item, active) => {
+    const m = markerOf(item);
+    const k = `${m.color}-${m.emoji}-${active}`;
+    return (icons[k] ??= pinIcon(m, active));
   };
 
   return (
@@ -80,31 +81,31 @@ const RestaurantMap = ({ restaurants, selectedRestaurant, onRestaurantSelect, ce
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds restaurants={restaurants} />
-      <FlyToSelected selected={selectedRestaurant} />
+      <FitBounds items={items} />
+      <FlyToSelected selected={selected} />
 
       {userLocation && (
         <CircleMarker
           center={[userLocation.latitude, userLocation.longitude]}
           radius={8}
-          pathOptions={{ color: '#FFFFFF', weight: 3, fillColor: '#DD6420', fillOpacity: 1 }}
+          pathOptions={{ color: '#1A1A1A', weight: 3, fillColor: '#FFD600', fillOpacity: 1 }}
         >
           <Tooltip>現在地</Tooltip>
         </CircleMarker>
       )}
 
-      {restaurants.map((restaurant) => {
-        const active = selectedRestaurant?.id === restaurant.id;
+      {items.map((item) => {
+        const active = selected?.id === item.id;
         return (
           <Marker
-            key={restaurant.id}
-            position={[restaurant.latitude, restaurant.longitude]}
-            icon={iconFor(restaurant.category, active)}
+            key={item.id}
+            position={[item.latitude, item.longitude]}
+            icon={iconFor(item, active)}
             zIndexOffset={active ? 1000 : 0}
-            eventHandlers={{ click: () => onRestaurantSelect(restaurant) }}
+            eventHandlers={{ click: () => onSelect(item) }}
           >
             <Tooltip direction="top">
-              <strong>{restaurant.name}</strong>
+              <strong>{item.name}</strong>
             </Tooltip>
           </Marker>
         );
@@ -113,4 +114,4 @@ const RestaurantMap = ({ restaurants, selectedRestaurant, onRestaurantSelect, ce
   );
 };
 
-export default RestaurantMap;
+export default MapView;

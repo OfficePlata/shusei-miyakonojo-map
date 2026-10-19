@@ -119,6 +119,7 @@ export const AREAS = [...new Set(stores.map((s) => s.area))].sort(
 )
 
 export const categoryById = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
+export const storeMarker = (store) => categoryById[store.category]
 export const sceneById = Object.fromEntries(SCENES.map((s) => [s.id, s]))
 
 export const formatClose = (h) => {

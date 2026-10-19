@@ -119,8 +119,9 @@
   }
 }
 
-/* ── 守成クラブ都城MAP ブランドトークン（5色のみ） ── */
+/* ── 守成クラブ都城MAP ブランドトークン（背景は守成レッド） ── */
 @theme {
+  --color-shusei: #C8161D;
   --color-brand: #FFD600;
   --color-brand-sub: #F5A623;
   --color-brand-accent: #DD6420;
@@ -131,7 +132,7 @@
 }
 
 body {
-  background: var(--color-brand);
+  background: var(--color-shusei);
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
