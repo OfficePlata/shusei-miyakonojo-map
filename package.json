@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:locations": "node scripts/check-locations.mjs"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.1",
