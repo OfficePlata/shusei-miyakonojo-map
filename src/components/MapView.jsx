@@ -54,7 +54,7 @@ const FitBounds = ({ items }) => {
 const FlyToSelected = ({ selected }) => {
   const map = useMap();
   useEffect(() => {
-    if (selected && hasSize(map)) {
+    if (selected && hasSize(map) && Number.isFinite(selected.latitude) && Number.isFinite(selected.longitude)) {
       map.flyTo([selected.latitude, selected.longitude], Math.max(map.getZoom(), 17), { duration: 0.6 });
     }
   }, [selected, map]);

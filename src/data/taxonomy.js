@@ -1,4 +1,5 @@
 // 店舗データから「用途」「シーン」「エリア」を自動で割り当てる。
+// 元データは restaurants.js（写真・紹介文つき）と、ポータルの三部会店舗（掲載 ON・三部会判定つき）。
 // restaurants.js の各店舗に `scenes: ['settai']` のように書けば、自動判定に追加できる。
 import { restaurants } from './restaurants.js'
 
@@ -23,13 +24,16 @@ const GENRE_TO_CATEGORY = {
   ダーツバー: 'bar',
   カフェバー: 'bar',
   スナック: 'snack',
+  ラウンジ: 'snack',
   高級クラブ: 'snack',
   ナイトスポット: 'snack',
 }
 
 // ── シーン ─────────────────────────────────────
 export const SCENES = [
-  { id: 'sanbukai', label: '三部会', sub: '深夜1時以降も営業', emoji: '🌙' },
+  // 三部会：赤バッジ以上の会員のお店で、店主がその日の例会に出席。牟田町周辺・都城駅周辺（判定はポータル）
+  { id: 'sanbukai', label: '三部会', sub: '赤バッジ以上・本日例会参加', emoji: '🏮' },
+  { id: 'late', label: '深夜営業', sub: '深夜1時以降も営業', emoji: '🌙' },
   { id: 'nijikai', label: '二次会', sub: '例会後の一杯', emoji: '🍻' },
   { id: 'dinner', label: '食事・一次会', sub: '18時台から入れる', emoji: '🍽️' },
   { id: 'enkai', label: '宴会・団体', sub: '28名以上OK', emoji: '🎉' },
@@ -83,7 +87,8 @@ const categoryOf = (r, hours) => {
 const scenesOf = (r, category, hours, minPrice) => {
   const s = new Set(r.scenes ?? [])
   const features = `${r.specialFeatures ?? ''}${r.description ?? ''}`
-  if (hours.close !== null && hours.close >= 25) s.add('sanbukai')
+  if (r.sanbukai) s.add('sanbukai')
+  if (hours.close !== null && hours.close >= 25) s.add('late')
   if (category !== 'food' || /居酒屋|ダイナー/.test(r.genre)) s.add('nijikai')
   if (category === 'food' && hours.open !== null && hours.open <= 18.5) s.add('dinner')
   if (r.capacity >= 28 || /団体|宴会/.test(features)) s.add('enkai')
@@ -95,28 +100,102 @@ const scenesOf = (r, category, hours, minPrice) => {
 
 const venueOf = (r) => r.venue ?? (r.memberType?.includes(TARGET_VENUE) ? TARGET_VENUE : null)
 
-export const stores = restaurants
-  .filter((r) => venueOf(r) === TARGET_VENUE)
-  .filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude))
-  .map((r) => {
-    const hours = parseHours(r.openingHours)
-    const minPrice = parseMinPrice(r.priceRangeDinner)
-    const category = categoryOf(r, hours)
+// 店名の突き合わせ用（全角半角・空白・大小を無視）
+const nameKey = (name = '') =>
+  name
+    .normalize('NFKC')
+    .replace(/[\s・'’、,]/g, '')
+    .toLowerCase()
+
+// 住所の「町名＋番地」（「21街区7号」「21番7」も「21-7」に揃える）
+const addressKey = (address = '') => {
+  const m = address
+    .normalize('NFKC')
+    .match(/([^\s\d]+?町)\s*(\d+)(?:街区|番地|番|丁目|-)\s*(\d+)/)
+  return m ? `${m[1]}${m[2]}-${m[3]}` : null
+}
+
+// 同じ店か。店名が一致・片方が片方を含む（4文字以上）、または番地が1対1で一致
+const makeMatcher = (statics, shops) => {
+  const count = (list, key) => list.filter((x) => addressKey(x.address) === key).length
+  return (r, shop) => {
+    const a = nameKey(r.name)
+    const b = nameKey(shop.name)
+    if (a === b) return true
+    if (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))) return true
+    const key = addressKey(r.address)
+    return key !== null && key === addressKey(shop.address) && count(statics, key) === 1 && count(shops, key) === 1
+  }
+}
+
+// ポータルの三部会店舗 → restaurants.js と同じ形
+const fromPortalShop = (shop, i) => ({
+  id: `p${i + 1}`,
+  name: shop.name,
+  genre: shop.category,
+  description: shop.note,
+  address: shop.address,
+  latitude: shop.lat,
+  longitude: shop.lng,
+  phoneNumber: shop.phone,
+  openingHours: shop.hours,
+  closingDay: shop.closed,
+  priceRangeDinner: shop.budget,
+  capacity: shop.seats,
+  venue: TARGET_VENUE,
+})
+
+const enrich = (r) => {
+  const hours = parseHours(r.openingHours)
+  const minPrice = parseMinPrice(r.priceRangeDinner)
+  const category = categoryOf(r, hours)
+  return {
+    ...r,
+    category,
+    area: parseArea(r.address),
+    scenes: scenesOf(r, category, hours, minPrice),
+    minPrice,
+    priceBand: PRICE_BANDS.find((b) => minPrice !== null && b.test(minPrice))?.id ?? null,
+    closeHour: hours.close,
+    hasImage: Boolean(r.imageUrl) && !r.imageUrl.startsWith('/api/placeholder'),
+  }
+}
+
+/**
+ * 表示する店の一覧。portalShops（ポータルの三部会店舗）が来ていれば、
+ * 同名の店は restaurants.js の写真・紹介文を残したまま三部会判定と店主を足し、無い店は追加する。
+ */
+export const buildStores = (portalShops = []) => {
+  const statics = restaurants.filter((r) => venueOf(r) === TARGET_VENUE)
+  const same = makeMatcher(statics, portalShops)
+  const used = new Set()
+  const merged = statics.map((r) => {
+    const shop = portalShops.find((s) => !used.has(s) && same(r, s))
+    if (!shop) return r
+    used.add(shop)
+    // 住所・座標・電話は世話人が手入れしているポータルを優先し、写真と紹介文は restaurants.js を残す
     return {
       ...r,
-      category,
-      area: parseArea(r.address),
-      scenes: scenesOf(r, category, hours, minPrice),
-      minPrice,
-      priceBand: PRICE_BANDS.find((b) => minPrice !== null && b.test(minPrice))?.id ?? null,
-      closeHour: hours.close,
-      hasImage: Boolean(r.imageUrl) && !r.imageUrl.startsWith('/api/placeholder'),
+      sanbukai: shop.sanbukai,
+      ownerIds: shop.ownerIds,
+      address: shop.address || r.address,
+      phoneNumber: shop.phone || r.phoneNumber,
+      latitude: shop.lat ?? r.latitude,
+      longitude: shop.lng ?? r.longitude,
     }
   })
+  const added = portalShops
+    .filter((s) => !used.has(s))
+    .map((s, i) => ({ ...fromPortalShop(s, i), sanbukai: s.sanbukai, ownerIds: s.ownerIds }))
+  return [...merged, ...added]
+    .filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude))
+    .map(enrich)
+}
 
-export const AREAS = [...new Set(stores.map((s) => s.area))].sort(
-  (a, b) => stores.filter((s) => s.area === b).length - stores.filter((s) => s.area === a).length,
-)
+export const areasOf = (stores) =>
+  [...new Set(stores.map((s) => s.area))].sort(
+    (a, b) => stores.filter((s) => s.area === b).length - stores.filter((s) => s.area === a).length,
+  )
 
 export const categoryById = Object.fromEntries(CATEGORIES.map((c) => [c.id, c]))
 export const storeMarker = (store) => categoryById[store.category]

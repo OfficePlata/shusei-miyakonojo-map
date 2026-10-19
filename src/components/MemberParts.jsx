@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { MapPin, Phone, Globe, Share2, Store, MessageCircle } from 'lucide-react'
-import { needById } from '../data/memberTaxonomy.js'
+import { needById, BADGES } from '../data/memberTaxonomy.js'
 import { formatDistance } from '../lib/geo.js'
 import { DetailShell, ActionLink } from './common.jsx'
 
@@ -21,6 +21,16 @@ const Avatar = ({ member, size }) => {
         <span className="grid h-full place-items-center font-display text-paper">{initialOf(member.name)}</span>
       )}
     </div>
+  )
+}
+
+const BadgeChip = ({ badge }) => {
+  const b = BADGES[badge]
+  if (!b) return null
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-black text-paper" style={{ background: b.color }}>
+      {b.label}
+    </span>
   )
 }
 
@@ -58,11 +68,16 @@ export function MemberCard({ member, need, selected, distance, onSelect }) {
             <span className="shrink-0 text-xs font-bold text-shusei">{formatDistance(distance)}</span>
           )}
         </div>
-        <p className="truncate text-xs font-bold text-ink/70">
-          {member.company}・{member.industry}
+        <p className="flex items-center gap-1 text-xs font-bold text-ink/70">
+          <BadgeChip badge={member.badge} />
+          <span className="truncate">
+            {member.company}・{member.industry}
+          </span>
         </p>
-        {member.services?.length > 0 && (
+        {member.services?.length > 0 ? (
           <p className="mt-1 line-clamp-2 text-xs font-medium">{member.services.join(' ／ ')}</p>
+        ) : (
+          member.description && <p className="mt-1 line-clamp-2 text-xs font-medium">{member.description}</p>
         )}
         <div className="mt-1.5 flex flex-wrap gap-1">
           {member.needs.map((n) => (
@@ -87,7 +102,11 @@ export function MemberDetail({ member, distance, onOpenStore, onShare, shared, o
       badge={`${need.emoji} ${need.label}`}
       onClose={onClose}
     >
-      <p className="text-xs font-bold text-ink/60">{member.industry}</p>
+      <p className="flex items-center gap-1.5 text-xs font-bold text-ink/60">
+        <BadgeChip badge={member.badge} />
+        {member.industry}
+        {member.jobTitle && <span>・{member.jobTitle}</span>}
+      </p>
       <h2 className="font-display text-xl leading-snug">
         {member.name}
         <span className="ml-1 text-sm">さん</span>
@@ -98,7 +117,7 @@ export function MemberDetail({ member, distance, onOpenStore, onShare, shared, o
           <NeedTag key={n} id={n} />
         ))}
       </div>
-      {member.description && <p className="mt-4 text-sm font-medium leading-relaxed">{member.description}</p>}
+      {member.description && <p className="mt-4 whitespace-pre-line text-sm font-medium leading-relaxed">{member.description}</p>}
 
       {member.services?.length > 0 && (
         <div className="mt-4 rounded-2xl bg-brand/40 p-3">

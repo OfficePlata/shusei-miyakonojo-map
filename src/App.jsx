@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone } from 'lucide-react'
 import { cityCenter } from './data/restaurants.js'
-import { stores, SCENES, CATEGORIES, AREAS, PRICE_BANDS, categoryById, sceneById, storeMarker } from './data/taxonomy.js'
-import { directory, NEEDS, needById, memberById, memberMarker } from './data/memberTaxonomy.js'
+import { SCENES, CATEGORIES, PRICE_BANDS, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
+import { NEEDS, needById, memberMarker, buildDirectory } from './data/memberTaxonomy.js'
+import { fetchMemberMap, PORTAL_URL } from './data/portal.js'
 import MapView from './components/MapView.jsx'
 import { Chip, EntryButton } from './components/common.jsx'
 import { distanceKm } from './lib/geo.js'
@@ -21,17 +22,16 @@ const STORE_SORTS = [
   { id: 'near', label: '現在地から近い' },
 ]
 
+// 会員はポータルからフリガナ順で届く
 const MEMBER_SORTS = [
-  { id: 'default', label: '登録順' },
-  { id: 'kana', label: '名前順' },
+  { id: 'default', label: 'あいうえお順' },
+  { id: 'photo', label: '写真のある人から' },
   { id: 'near', label: '現在地から近い' },
 ]
 
-const storeById = Object.fromEntries(stores.map((s) => [String(s.id), s]))
-const ownerOf = (store) => directory.find((m) => m.linkedStores.some((s) => s.id === store.id))
 
 // ── URL ⇔ 絞り込み条件（「三部会のお店」「住まいの相談」リンクをそのまま共有できる） ──
-const readParams = () => {
+const readParams = ({ areas, memberById, storeById }) => {
   const p = new URLSearchParams(window.location.search)
   const list = (k) => (p.get(k) ? p.get(k).split(',') : [])
   const scene = sceneById[p.get('scene')] ? p.get('scene') : null
@@ -44,7 +44,7 @@ const readParams = () => {
     need: needById[p.get('need')] ? p.get('need') : null,
     scene,
     categories,
-    area: AREAS.includes(p.get('area')) ? p.get('area') : null,
+    area: areas.includes(p.get('area')) ? p.get('area') : null,
     price: PRICE_BANDS.some((b) => b.id === p.get('price')) ? p.get('price') : null,
     q: p.get('q') ?? '',
     selected: member ? { type: 'member', item: member } : store ? { type: 'store', item: store } : null,
@@ -66,6 +66,12 @@ const writeParams = ({ mode, need, scene, categories, area, price, q, selected }
   window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
 }
 
+const formatMeetingDate = (ms) => {
+  if (!ms) return ''
+  const d = new Date(ms)
+  return `（${d.getMonth() + 1}/${d.getDate()}）`
+}
+
 const copyOrShare = async (title, url) => {
   if (navigator.share) {
     await navigator.share({ title, url })
@@ -75,8 +81,50 @@ const copyOrShare = async (title, url) => {
   return true
 }
 
+// ポータルから会員と三部会の店を読み、読めなければ同梱のデータで動かす
+const useMapData = () => {
+  const [state, setState] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const done = (portal) => {
+      if (!alive) return
+      const stores = buildStores(portal?.shops ?? [])
+      setState({
+        stores,
+        directory: buildDirectory(portal?.members ?? null, stores),
+        meeting: portal?.meeting ?? null,
+        live: Boolean(portal),
+      })
+    }
+    fetchMemberMap().then(done, (err) => {
+      console.warn('ポータルを読めなかったため同梱データで表示します', err)
+      done(null)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return state
+}
+
 function App() {
-  const initial = useMemo(readParams, [])
+  const data = useMapData()
+  if (!data) {
+    return (
+      <div className="grid h-dvh place-items-center text-paper">
+        <p className="font-display text-xl">守成クラブ都城MAP</p>
+      </div>
+    )
+  }
+  return <Finder {...data} />
+}
+
+function Finder({ stores, directory, meeting, live }) {
+  const areas = useMemo(() => areasOf(stores), [stores])
+  const storeById = useMemo(() => Object.fromEntries(stores.map((s) => [String(s.id), s])), [stores])
+  const memberById = useMemo(() => Object.fromEntries(directory.map((m) => [m.id, m])), [directory])
+  const ownerOf = (store) => directory.find((m) => m.linkedStores.some((s) => s.id === store.id))
+  const initial = useMemo(() => readParams({ areas, memberById, storeById }), [areas, memberById, storeById])
   const [mode, setMode] = useState(initial.mode)
   const [need, setNeed] = useState(initial.need)
   const [scene, setScene] = useState(initial.scene)
@@ -153,7 +201,7 @@ function App() {
     for (const s of stores) d[`store-${s.id}`] = distanceKm(userLocation, s)
     for (const m of directory) if (m.hasLocation) d[`member-${m.id}`] = distanceKm(userLocation, m)
     return d
-  }, [userLocation])
+  }, [userLocation, stores, directory])
 
   const q = searchTerm.trim().toLowerCase()
 
@@ -171,7 +219,7 @@ function App() {
     if (storeSort === 'near' && userLocation)
       return [...list].sort((a, b) => distances[`store-${a.id}`] - distances[`store-${b.id}`])
     return list
-  }, [scene, categories, area, price, q, storeSort, userLocation, distances])
+  }, [stores, scene, categories, area, price, q, storeSort, userLocation, distances])
 
   const filteredMembers = useMemo(() => {
     const list = directory.filter((m) => {
@@ -180,13 +228,13 @@ function App() {
         return false
       return true
     })
-    if (memberSort === 'kana') return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+    if (memberSort === 'photo') return [...list].sort((a, b) => Number(Boolean(b.photo)) - Number(Boolean(a.photo)))
     if (memberSort === 'near' && userLocation) {
       const d = (m) => distances[`member-${m.id}`] ?? Infinity
       return [...list].sort((a, b) => d(a) - d(b))
     }
     return list
-  }, [need, q, memberSort, userLocation, distances])
+  }, [directory, need, q, memberSort, userLocation, distances])
 
   const isStores = mode === 'stores'
   const mapItems = isStores ? filteredStores : filteredMembers.filter((m) => m.hasLocation)
@@ -360,7 +408,7 @@ function App() {
                   className="min-w-0 flex-1 rounded-xl border-2 border-ink bg-paper px-2 py-1.5 text-sm font-bold"
                 >
                   <option value="">📍 すべてのエリア</option>
-                  {AREAS.map((a) => (
+                  {areas.map((a) => (
                     <option key={a} value={a}>
                       {a}（{stores.filter((s) => s.area === a).length}）
                     </option>
@@ -395,6 +443,19 @@ function App() {
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-24 md:px-0 md:pb-0 md:pr-1">
+            {isStores && scene === 'sanbukai' && (
+              <div className="rounded-2xl bg-ink p-3 text-xs font-medium leading-relaxed text-paper">
+                <p className="text-sm font-black text-brand">🏮 三部会のお店</p>
+                {live ? (
+                  <p className="mt-1">
+                    {meeting ? `${meeting.name}${formatMeetingDate(meeting.startAt)}` : '次回例会'}
+                    に出席する赤バッジ以上の会員のお店です（牟田町周辺・都城駅周辺）。出欠の回答に合わせて自動で入れ替わります。
+                  </p>
+                ) : (
+                  <p className="mt-1">会員データに接続できないため、いまは三部会の判定ができません。時間をおいて開き直してください。</p>
+                )}
+              </div>
+            )}
             {isStores
               ? filteredStores.map((store) => (
                 <StoreCard
@@ -428,8 +489,11 @@ function App() {
               <div className="flex gap-3 rounded-2xl border-2 border-dashed border-paper/70 p-4 text-paper">
                 <Megaphone className="h-5 w-5 shrink-0 text-brand" />
                 <p className="text-xs font-medium leading-relaxed">
-                  <span className="block text-sm font-black">あなたの事業も載せませんか？</span>
-                  「こんな相談OK」や所在地・連絡先を登録すると、会員さんから声がかかりやすくなります。掲載・修正は都城会場の事務局へ。
+                  <span className="block text-sm font-black">住所・電話番号も載せませんか？</span>
+                  セワニンジャ・ポータルのホーム「守成クラブ都城MAPの公開設定」で公開にすると、地図にピンが立ち、会員さんから直接連絡が来るようになります。
+                  <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="mt-2 block font-black text-brand underline underline-offset-2">
+                    ポータルを開く →
+                  </a>
                 </p>
               </div>
             )}
