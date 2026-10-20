@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { MapPin, Clock, Users, Phone, Navigation, Moon, User, ExternalLink } from 'lucide-react'
 import { categoryById, sceneById, formatClose } from '../data/taxonomy.js'
 import { formatDistance, routeUrl } from '../lib/geo.js'
-import { DetailShell, ActionLink } from './common.jsx'
+import { DetailShell, ActionLink, PrintToggle } from './common.jsx'
 
 const StoreImage = ({ store, className, alt = '' }) => {
   const [failed, setFailed] = useState(false)
@@ -63,7 +63,7 @@ export function StoreCard({ store, scene, selected, distance, onSelect }) {
   )
 }
 
-export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
+export function StoreDetail({ store, distance, owner, onOpenOwner, inPrint, onTogglePrint, onClose }) {
   const cat = categoryById[store.category]
   return (
     <DetailShell
@@ -134,6 +134,7 @@ export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
           ルート案内
         </ActionLink>
       </div>
+      <PrintToggle active={inPrint} onClick={onTogglePrint} />
       {store.shuseiUrl && (
         <a
           href={store.shuseiUrl}

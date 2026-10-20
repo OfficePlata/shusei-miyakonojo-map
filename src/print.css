@@ -1,0 +1,235 @@
+/* 印刷リスト（A4 タテ）。
+   紙に出る部分は PDF_PRINT_SAFE_RULES に合わせる：
+   グラデーション・影・半透明（rgba / opacity）・破線・overflow:hidden の角丸を使わない。色はすべて不透明の16進。 */
+
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+.print-root {
+  min-height: 100dvh;
+  background: #ECE8E1;
+  color: #1A1A1A;
+}
+
+/* ── 画面だけの操作バー ── */
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #C8161D;
+}
+.print-toolbar__count {
+  margin-right: auto;
+  font-weight: 900;
+  color: #FFFFFF;
+}
+.print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 2px solid #1A1A1A;
+  border-radius: 12px;
+  background: #FFFFFF;
+  font-size: 13px;
+  font-weight: 900;
+}
+.print-btn--primary {
+  background: #FFD600;
+}
+.print-btn:disabled {
+  color: #9A948B;
+  border-color: #9A948B;
+}
+
+/* ── 用紙（画面でも A4 の幅で描き、地図を印刷と同じ大きさで組む） ── */
+.print-scroll {
+  overflow-x: auto;
+  padding: 16px;
+}
+.print-sheet {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 12mm;
+  background: #FFFFFF;
+  border: 1px solid #D5CFC4;
+}
+
+.print-head {
+  border-bottom: 2px solid #C8161D;
+  padding-bottom: 3mm;
+  margin-bottom: 4mm;
+}
+.print-title {
+  width: 100%;
+  border: 1px solid #D5CFC4;
+  padding: 1mm 2mm;
+  font-family: var(--font-display);
+  font-size: 18pt;
+  line-height: 1.3;
+  color: #1A1A1A;
+  background: #FFFDF2;
+}
+.print-meta {
+  margin-top: 1mm;
+  font-size: 8pt;
+  color: #5C5750;
+}
+.print-empty {
+  padding: 20mm 0;
+  text-align: center;
+  font-weight: 700;
+}
+
+.print-map {
+  height: 105mm;
+  margin-bottom: 4mm;
+  border: 1px solid #1A1A1A;
+}
+.print-map .leaflet-container {
+  background: #FFFFFF;
+}
+.print-map-snap {
+  display: none;
+}
+.print-pin {
+  background: none;
+  border: none;
+}
+.print-pin span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  background: #C8161D;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  line-height: 1.45;
+}
+.print-table th {
+  padding: 1.5mm 2mm;
+  border: 1px solid #1A1A1A;
+  background: #1A1A1A;
+  color: #FFFFFF;
+  font-weight: 700;
+  text-align: left;
+}
+.print-table td {
+  padding: 1.5mm 2mm;
+  border: 1px solid #B8B1A6;
+  vertical-align: top;
+}
+.print-table tr {
+  break-inside: avoid;
+}
+.print-col-no {
+  width: 9mm;
+  text-align: center;
+}
+.print-col-tel {
+  width: 30mm;
+  white-space: nowrap;
+}
+.print-col-ctl {
+  width: 26mm;
+  white-space: nowrap;
+}
+.print-col-ctl button {
+  padding: 2px;
+}
+.print-col-ctl button:disabled {
+  color: #C9C3B8;
+}
+.print-no {
+  display: inline-grid;
+  place-items: center;
+  width: 6mm;
+  height: 6mm;
+  border-radius: 50%;
+  background: #C8161D;
+  color: #FFFFFF;
+  font-weight: 900;
+}
+.print-name {
+  display: block;
+  font-size: 10pt;
+}
+.print-sub {
+  display: block;
+  font-size: 8pt;
+  color: #5C5750;
+  white-space: pre-line;
+}
+.print-foot {
+  margin-top: 3mm;
+  font-size: 7pt;
+  color: #5C5750;
+}
+
+@media print {
+  .no-print,
+  .leaflet-control-container {
+    display: none !important;
+  }
+  html,
+  body,
+  .print-root {
+    background: #FFFFFF !important;
+  }
+  .print-root,
+  .print-scroll {
+    min-height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  /* 用紙の余白は @page で取るので、ここでは枠と内側の余白を外す */
+  .print-sheet {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    border: none;
+  }
+  .print-title {
+    border: none;
+    padding: 0;
+    background: #FFFFFF;
+  }
+  .print-head {
+    break-after: avoid;
+  }
+  .print-map {
+    break-inside: avoid;
+  }
+  /* 1枚にまとめた地図画像があれば、それを刷る */
+  .print-map.has-snap .leaflet-container {
+    display: none !important;
+  }
+  .print-map.has-snap .print-map-snap {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

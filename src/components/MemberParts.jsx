@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { MapPin, Phone, Globe, Share2, Store, MessageCircle, ExternalLink } from 'lucide-react'
 import { needById, BADGES } from '../data/memberTaxonomy.js'
 import { formatDistance } from '../lib/geo.js'
-import { DetailShell, ActionLink } from './common.jsx'
+import { DetailShell, ActionLink, PrintToggle } from './common.jsx'
 
 const initialOf = (name = '') => name.trim().charAt(0)
 
@@ -89,7 +89,7 @@ export function MemberCard({ member, need, selected, distance, onSelect }) {
   )
 }
 
-export function MemberDetail({ member, distance, onOpenStore, onShare, shared, onClose }) {
+export function MemberDetail({ member, distance, onOpenStore, onShare, shared, inPrint, onTogglePrint, onClose }) {
   const need = needById[member.primaryNeed]
   return (
     <DetailShell
@@ -204,6 +204,7 @@ export function MemberDetail({ member, distance, onOpenStore, onShare, shared, o
           {shared ? 'リンクをコピーしました' : '知り合いに紹介する'}
         </button>
       </div>
+      <PrintToggle active={inPrint} onClick={onTogglePrint} />
 
       <p className="mt-4 flex gap-2 rounded-xl bg-ink/5 p-3 text-xs font-medium leading-relaxed">
         <MessageCircle className="mt-0.5 h-4 w-4 shrink-0" />
