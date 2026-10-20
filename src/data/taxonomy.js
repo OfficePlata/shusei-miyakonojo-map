@@ -1,7 +1,10 @@
 // 店舗データから「用途」「シーン」「エリア」を自動で割り当てる。
-// 元データは restaurants.js（写真・紹介文つき）と、ポータルの三部会店舗（掲載 ON・三部会判定つき）。
+// 元データは restaurants.js（写真・紹介文つき）、守成MAPS の飲食・ナイトの掲載（shuseiMaps.js）、
+// ポータルの三部会店舗（掲載 ON・三部会判定つき）。
 // restaurants.js の各店舗に `scenes: ['settai']` のように書けば、自動判定に追加できる。
 import { restaurants } from './restaurants.js'
+import { shuseiListings } from './shuseiMaps.js'
+import { notInRoster } from './roster.js'
 
 // 掲載対象の会場（宮崎県・都城会場の在籍会員のみ）
 export const TARGET_VENUE = '都城'
@@ -20,6 +23,9 @@ const GENRE_TO_CATEGORY = {
   ダイニング: 'food',
   'ラーメン・居酒屋': 'food',
   'ラーメン・辛麺': 'food',
+  ラーメン: 'food',
+  カレー: 'food',
+  カフェ: 'food',
   バー: 'bar',
   ダーツバー: 'bar',
   カフェバー: 'bar',
@@ -51,14 +57,18 @@ export const PRICE_BANDS = [
 
 // "18:00～24:00" "20:00～深夜" "21:00～05:00" "11:00~15:00,18:00~3:00" → 時間（小数）
 const parseHours = (raw = '') => {
-  // 「（LO22:30）」「（推定）」などの補足は除く
-  const text = raw.replace(/[（(][^）)]*[）)]/g, '')
+  // 「（LO22:30）」「（推定）」などの補足は除き、「18時〜3時」「20時30分」も 18:00 の形にそろえる
+  const text = raw
+    .normalize('NFKC')
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/(\d{1,2})時(?:(\d{1,2})分)?/g, (_, h, m = '0') => `${h}:${m.padStart(2, '0')}`)
   const times = [...text.matchAll(/(\d{1,2})[:：](\d{2})/g)].map(
     ([, h, m]) => Number(h) + Number(m) / 60,
   )
   if (times.length === 0) return { open: null, close: null, lunch: false }
   const open = times[0]
-  let close = /深夜/.test(text) ? 26 : times[times.length - 1]
+  // 「21時〜」のように開店時刻しか無ければ閉店は不明
+  let close = /深夜|last/i.test(text) ? 26 : times.length > 1 ? times[times.length - 1] : null
   // 翌朝までの営業（05:00 など）は 24 を足す
   if (close !== null && close <= 12 && close < open) close += 24
   const lunch = open < 15
@@ -115,17 +125,80 @@ const addressKey = (address = '') => {
   return m ? `${m[1]}${m[2]}-${m[3]}` : null
 }
 
+// 店名が一致・片方が片方を含む（4文字以上）
+const sameStoreName = (x, y) => {
+  const a = nameKey(x)
+  const b = nameKey(y)
+  return a === b || (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a)))
+}
+
 // 同じ店か。店名が一致・片方が片方を含む（4文字以上）、または番地が1対1で一致
 const makeMatcher = (statics, shops) => {
   const count = (list, key) => list.filter((x) => addressKey(x.address) === key).length
   return (r, shop) => {
-    const a = nameKey(r.name)
-    const b = nameKey(shop.name)
-    if (a === b) return true
-    if (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))) return true
+    if (sameStoreName(r.name, shop.name)) return true
     const key = addressKey(r.address)
     return key !== null && key === addressKey(shop.address) && count(statics, key) === 1 && count(shops, key) === 1
   }
+}
+
+// 守成MAPS の掲載のうち、お店モードに載せるもの（飲食・ナイト）
+const FOOD_CATEGORIES = ['ランチ', 'ディナー', 'カフェ', 'Bar・スナック・Club']
+const isFoodListing = (l) => l.categories.some((c) => FOOD_CATEGORIES.includes(c))
+
+const genreOfListing = (l) => {
+  if (l.categories.includes('Bar・スナック・Club')) {
+    if (/cafe\s*&\s*bar/i.test(l.name)) return 'カフェバー'
+    return /bar/i.test(l.name) ? 'バー' : 'スナック'
+  }
+  if (/ラーメン|辛麺/.test(l.name)) return 'ラーメン'
+  if (/焼肉/.test(l.name)) return '焼肉'
+  if (/カレー/.test(l.name)) return 'カレー'
+  if (/ダイナー/.test(l.name)) return 'ダイナー'
+  if (/居酒屋|居食/.test(l.name)) return '居酒屋'
+  if (/cafe|カフェ/i.test(l.name) || l.categories.every((c) => c === 'カフェ')) return 'カフェ'
+  return 'ダイニング'
+}
+
+// 守成MAPS の掲載 → restaurants.js と同じ形
+const fromListing = (l) => ({
+  id: `m-${l.id}`,
+  name: l.name,
+  genre: genreOfListing(l),
+  description: l.copy || l.description,
+  address: l.address,
+  latitude: l.latitude,
+  longitude: l.longitude,
+  phoneNumber: l.phone,
+  openingHours: l.hours,
+  closingDay: l.closed,
+  imageUrl: l.photo,
+  shuseiUrl: l.url,
+  owner: l.owner,
+  scenes: [...(l.categories.includes('24時以降も営業') ? ['late'] : [])],
+  venue: TARGET_VENUE,
+})
+
+// 店名が同じ店に守成MAPS の掲載を重ねる。写真・営業時間・定休日・電話は店主が手入れしている守成MAPS を優先し、
+// 紹介文・価格帯・席数は restaurants.js を残す。番地だけでは重ねない（同じビルに別の店が入っているため）
+const withListings = (statics) => {
+  const listings = shuseiListings.filter(isFoodListing)
+  const used = new Set()
+  const merged = statics.map((r) => {
+    const l = listings.find((x) => !used.has(x) && sameStoreName(r.name, x.name))
+    if (!l) return r
+    used.add(l)
+    return {
+      ...r,
+      imageUrl: l.photo || r.imageUrl,
+      openingHours: l.hours || r.openingHours,
+      closingDay: l.closed || r.closingDay,
+      phoneNumber: l.phone || r.phoneNumber,
+      description: r.description || l.copy,
+      shuseiUrl: l.url,
+    }
+  })
+  return [...merged, ...listings.filter((l) => !used.has(l)).map(fromListing)]
 }
 
 // ポータルの三部会店舗 → restaurants.js と同じ形
@@ -164,9 +237,13 @@ const enrich = (r) => {
 /**
  * 表示する店の一覧。portalShops（ポータルの三部会店舗）が来ていれば、
  * 同名の店は restaurants.js の写真・紹介文を残したまま三部会判定と店主を足し、無い店は追加する。
+ * 名簿にいない店主の店は出さない（ポータルの店は呼び出し側で店主の ID を見て外す）。
  */
+const rosterOut = new Set(notInRoster.map((n) => n.replace(/[\s\u3000]+/g, '')))
 export const buildStores = (portalShops = []) => {
-  const statics = restaurants.filter((r) => venueOf(r) === TARGET_VENUE)
+  const statics = withListings(
+    restaurants.filter((r) => venueOf(r) === TARGET_VENUE && !rosterOut.has((r.owner ?? '').replace(/[\s\u3000]+/g, ''))),
+  )
   const same = makeMatcher(statics, portalShops)
   const used = new Set()
   const merged = statics.map((r) => {

@@ -3,6 +3,8 @@
 // 業種（ポータルの19区分）を第一に、事業内容のキーワードでも当てる。1人が複数の困りごとに出てよい。
 import { members as fallbackMembers } from './members.js'
 import { TARGET_VENUE } from './taxonomy.js'
+import { shuseiListings } from './shuseiMaps.js'
+import { notInRoster } from './roster.js'
 
 // ── 困りごと・用途（会員検索の入口） ──────────────────
 export const NEEDS = [
@@ -30,6 +32,38 @@ export const BADGES = {
 }
 
 const normalizeName = (name = '') => name.replace(/[\s\u3000]+/g, '')
+
+// 本部の会員名簿にいない人（守成ID に有効で残っている退会者など）は載せない
+const rosterOut = new Set(notInRoster.map(normalizeName))
+export const isInRoster = (name) => !rosterOut.has(normalizeName(name))
+
+// 守成MAPS のカテゴリ → 困りごと
+const LISTING_NEEDS = {
+  '建築・工事': 'home',
+  不動産: 'home',
+  '修理・メンテナンス': 'home',
+  '清掃・クリーニング・駆除': 'living',
+  美容: 'beauty',
+  '医療・治療・マッサージ': 'beauty',
+  'ジム・スポーツ': 'beauty',
+  '自動車・バイク': 'car',
+  '広告・デザイン': 'promo',
+  'IT・情報・通信': 'promo',
+  '撮影・スタジオ・映像': 'promo',
+  士業: 'biz',
+  '保険・FP': 'biz',
+  コンサルティング: 'biz',
+  ビジネス: 'biz',
+  'お祝い・ギフト': 'gift',
+  'お土産・雑貨': 'gift',
+  食品販売: 'gift',
+  'イベント・マスコミ・芸能': 'event',
+  レジャー: 'event',
+  ランチ: 'food',
+  ディナー: 'food',
+  カフェ: 'food',
+  'Bar・スナック・Club': 'food',
+}
 
 // ポータルの会員 → 画面で使う形
 const fromPortal = (m) => ({
@@ -82,21 +116,27 @@ export const buildDirectory = (portalMembers, stores) => {
   }
 
   return raw
-    .filter((m) => m.venue === TARGET_VENUE)
+    .filter((m) => m.venue === TARGET_VENUE && isInRoster(m.name))
     .map((m) => {
       const key = normalizeName(m.name)
       const linkedStores = stores.filter((s) => s.ownerIds?.includes(m.id) || (s.owner && ownerKey(s) === key))
+      // 守成MAPS に本人が載せている店・事業所（飲食以外も）
+      const listings = shuseiListings.filter((l) => normalizeName(l.owner) === key)
       const text = [m.company, m.description, ...(m.services ?? [])].join(' ')
       const byIndustry = NEEDS.filter((n) => n.industries.includes(m.industry)).map((n) => n.id)
       const byText = NEEDS.filter((n) => n.pattern.test(text)).map((n) => n.id)
-      const needs = [...new Set([...byIndustry, ...byText, ...(linkedStores.length ? ['food'] : [])])]
+      const byListing = listings.flatMap((l) => l.categories.map((c) => LISTING_NEEDS[c])).filter(Boolean)
+      const needs = [...new Set([...byIndustry, ...byText, ...byListing, ...(linkedStores.length ? ['food'] : [])])]
       const located = Number.isFinite(m.latitude) && Number.isFinite(m.longitude)
-      const anchor = located ? m : linkedStores[0]
+      // 位置は本人が公開した住所 → 運営している店 → 守成MAPS に載せている所在地の順
+      const anchor = located ? m : (linkedStores[0] ?? listings.find((l) => Number.isFinite(l.latitude)))
       return {
         ...m,
+        photo: m.photo ?? listings.find((l) => l.photo)?.photo,
         needs,
         primaryNeed: needs[0] ?? 'biz',
         linkedStores,
+        listings,
         latitude: anchor?.latitude,
         longitude: anchor?.longitude,
         address: m.address ?? anchor?.address,
