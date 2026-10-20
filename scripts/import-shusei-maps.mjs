@@ -1,18 +1,16 @@
-// 本部の会員名簿を正として、守成MAPS（miyakonojo.shusei-maps.com）の掲載内容を取り込む。
-//   npm run import:shusei-maps -- <守成MAPSのCSV> <会員名簿CSV（本部・Shift_JIS）>
+// セワニンジャ・ポータルの会員（都城会場の有効会員）を正として、守成MAPS（miyakonojo.shusei-maps.com）の掲載を取り込む。
+//   npm run import:shusei-maps -- <守成MAPSのCSV>
 //
 // 書き出すもの
-//   src/data/shuseiMaps.js  名簿にいる会員の掲載だけ（店名・写真・営業時間・定休日・電話・紹介文・座標）
-//   src/data/roster.js      ポータルにいるのに名簿にいない会員の氏名（MAP から外す）
-//
-// 名簿そのもの（メール・携帯・紹介者など）はリポジトリに入れない。氏名の突き合わせにだけ使う。
+//   src/data/shuseiMaps.js  ポータルにいる会員の掲載だけ（店名・写真・営業時間・定休日・電話・紹介文・座標）
+// 守成MAPS に載っていてもポータルにいない人の掲載は取り込まない（退会者など）。
 // 座標は check-locations と同じく国土地理院の住所検索で引く。番地まで無い住所はピンを立てない。
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-const [mapsCsv, rosterCsv] = process.argv.slice(2)
-if (!mapsCsv || !rosterCsv) {
-  console.error('使い方: npm run import:shusei-maps -- <守成MAPSのCSV> <会員名簿CSV>')
+const [mapsCsv] = process.argv.slice(2)
+if (!mapsCsv) {
+  console.error('使い方: npm run import:shusei-maps -- <守成MAPSのCSV>')
   process.exit(1)
 }
 
@@ -47,47 +45,30 @@ const parseCsv = (text) => {
 }
 
 // ── 氏名・社名の突き合わせ ───────────────────────
-const norm = (s = '') => s.normalize('NFKC').replace(/[\s　]+/g, '')
-// 名簿は Shift_JIS に無い漢字（髙・﨑など）が「_」になっているので1文字の何でもとして扱う
-const sameName = (rosterName, name) => {
-  const a = norm(rosterName)
-  const b = norm(name)
-  if (a === b) return true
-  return a.includes('_') && a.length === b.length && [...a].every((c, i) => c === '_' || c === b[i])
-}
+// 異体字（髙・﨑など）は守成MAPS 側で常用字になっていることがあるのでそろえる
+const VARIANTS = { 髙: '高', 﨑: '崎', 德: '徳', 濵: '浜', 邉: '辺', 邊: '辺' }
+const norm = (s = '') =>
+  s
+    .normalize('NFKC')
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[髙﨑德濵邉邊]/g, (c) => VARIANTS[c])
 const companyKey = (s = '') =>
   norm(s)
-    .replace(/[⑭⑰]|株式会社|有限会社|合同会社|\(株\)|\(有\)/g, '')
+    .replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)/g, '')
     .toLowerCase()
 const sameCompany = (a, b) => {
   const x = companyKey(a)
   const y = companyKey(b)
   return Math.min(x.length, y.length) >= 4 && (x.includes(y) || y.includes(x))
 }
-// 名簿と守成ID で漢字が違う人（平井 亜砂美／亜沙美 など）はフリガナで同じ人と見る
-const sameKana = (roster, member) =>
-  roster.kana && norm(roster.kana) === norm(member.kana) && [...norm(roster.name)].some((c) => norm(member.name).includes(c))
-
-const roster = parseCsv(new TextDecoder('shift_jis').decode(readFileSync(rosterCsv)))
-  .filter((r) => r['氏名'] && !r['退会日'])
-  .map((r) => ({ name: r['氏名'].replace(/　/g, ' '), kana: r['氏名カナ'], company: r['会社名'] }))
-console.log(`名簿: ${roster.length}名`)
 
 const portal = await (await fetch(`${PORTAL_URL}/api/member-map`)).json()
-const inRoster = (m) => roster.find((r) => sameName(r.name, m.name) || sameKana(r, m))
-const notInRoster = portal.members.filter((m) => !inRoster(m)).map((m) => m.name)
-console.log(`ポータル: ${portal.members.length}名（名簿にいない ${notInRoster.length}名を外す）`)
+console.log(`ポータル: ${portal.members.length}名`)
 
-// 守成MAPS の掲載者 → 会員（表記はポータルに合わせる。MAP はポータルの氏名で引くため）
-const ownerOf = (accountName) => {
-  const r =
-    roster.find((x) => sameName(x.name, accountName)) ??
-    roster.find((x) => portal.members.some((m) => sameName(m.name, accountName) && sameKana(x, m))) ??
-    roster.find((x) => sameCompany(x.company, accountName))
-  if (!r) return null
-  const m = portal.members.find((p) => sameName(r.name, p.name) || sameKana(r, p))
-  return m?.name ?? r.name
-}
+// 守成MAPS の掲載者 → ポータルの会員（氏名、なければ社名で引く。社名で掲載している人がいるため）
+const ownerOf = (accountName) =>
+  (portal.members.find((m) => norm(m.name) === norm(accountName)) ??
+    portal.members.find((m) => sameCompany(m.company, accountName)))?.name ?? null
 
 // ── 住所 → 座標（国土地理院） ─────────────────────
 const toKey = (address) =>
@@ -144,22 +125,13 @@ for (const row of parseCsv(readFileSync(mapsCsv, 'utf8'))) {
 const today = new Date().toISOString().slice(0, 10)
 writeFileSync(
   out('shuseiMaps.js'),
-  `// 守成MAPS（${MAPS_ORIGIN}）の掲載のうち、本部の会員名簿にいる会員のもの。
+  `// 守成MAPS（${MAPS_ORIGIN}）の掲載のうち、セワニンジャ・ポータルにいる会員のもの。
 // scripts/import-shusei-maps.mjs で生成（${today}）。手で直さず、守成MAPS 側を直して取り込み直す。
 export const SHUSEI_MAPS_IMPORTED = '${today}'
 
 export const shuseiListings = ${JSON.stringify(listings, null, 2)}
 `,
 )
-writeFileSync(
-  out('roster.js'),
-  `// 本部の会員名簿（${rosterCsv.split('/').pop()}）を正とする。
-// セワニンジャ・ポータル（守成ID）に「有効」で残っているが名簿にいない会員。MAP からは外す。
-// 退会を確認できたら守成ID 側で「無効」にすれば、ここに書かなくても出なくなる。
-// scripts/import-shusei-maps.mjs で生成（${today}）。
-export const notInRoster = ${JSON.stringify(notInRoster, null, 2)}
-`,
-)
 
 console.log(`\n守成MAPS: ${listings.length}件を取り込み（座標なし ${listings.filter((l) => !l.latitude).length}件）`)
-if (skipped.length) console.log(`名簿にいない掲載者のため外した ${skipped.length}件:\n  ${skipped.join('\n  ')}`)
+if (skipped.length) console.log(`ポータルにいない掲載者のため外した ${skipped.length}件:\n  ${skipped.join('\n  ')}`)

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone } from 'lucide-react'
 import { cityCenter } from './data/restaurants.js'
 import { SCENES, CATEGORIES, PRICE_BANDS, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
-import { NEEDS, needById, memberMarker, buildDirectory, isInRoster } from './data/memberTaxonomy.js'
+import { NEEDS, needById, memberMarker, buildDirectory } from './data/memberTaxonomy.js'
 import { fetchMemberMap, PORTAL_URL } from './data/portal.js'
 import MapView from './components/MapView.jsx'
 import { Chip, EntryButton } from './components/common.jsx'
@@ -88,11 +88,9 @@ const useMapData = () => {
     let alive = true
     const done = (portal) => {
       if (!alive) return
-      // 名簿にいない会員と、店主が全員名簿にいない店は外す
-      const members = portal?.members.filter((m) => isInRoster(m.name)) ?? null
-      const memberIds = new Set(members?.map((m) => m.id))
-      const shops = (portal?.shops ?? []).filter((s) => !s.ownerIds?.length || s.ownerIds.some((id) => memberIds.has(id)))
-      const stores = buildStores(shops)
+      // 会員はポータルが正。店主がポータルにいない店は出さない
+      const members = portal?.members ?? null
+      const stores = buildStores(portal?.shops ?? [], members?.map((m) => m.name))
       setState({
         stores,
         directory: buildDirectory(members, stores),

@@ -4,7 +4,6 @@
 import { members as fallbackMembers } from './members.js'
 import { TARGET_VENUE } from './taxonomy.js'
 import { shuseiListings } from './shuseiMaps.js'
-import { notInRoster } from './roster.js'
 
 // ── 困りごと・用途（会員検索の入口） ──────────────────
 export const NEEDS = [
@@ -32,10 +31,6 @@ export const BADGES = {
 }
 
 const normalizeName = (name = '') => name.replace(/[\s\u3000]+/g, '')
-
-// 本部の会員名簿にいない人（守成ID に有効で残っている退会者など）は載せない
-const rosterOut = new Set(notInRoster.map(normalizeName))
-export const isInRoster = (name) => !rosterOut.has(normalizeName(name))
 
 // 守成MAPS のカテゴリ → 困りごと
 const LISTING_NEEDS = {
@@ -116,7 +111,7 @@ export const buildDirectory = (portalMembers, stores) => {
   }
 
   return raw
-    .filter((m) => m.venue === TARGET_VENUE && isInRoster(m.name))
+    .filter((m) => m.venue === TARGET_VENUE)
     .map((m) => {
       const key = normalizeName(m.name)
       const linkedStores = stores.filter((s) => s.ownerIds?.includes(m.id) || (s.owner && ownerKey(s) === key))
