@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone } from 'lucide-react'
 import { cityCenter } from './data/restaurants.js'
-import { SCENES, CATEGORIES, PRICE_BANDS, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
+import { SCENES, CATEGORIES, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
 import { NEEDS, needById, memberMarker, buildDirectory } from './data/memberTaxonomy.js'
 import { fetchMemberMap, PORTAL_URL } from './data/portal.js'
 import MapView from './components/MapView.jsx'
@@ -38,27 +38,25 @@ const readParams = ({ areas, memberById, storeById }) => {
   const categories = list('type').filter((c) => categoryById[c])
   const member = memberById[p.get('member')] ?? null
   const store = storeById[p.get('store')] ?? null
-  const storeHint = scene || categories.length || store || p.get('area') || p.get('price')
+  const storeHint = scene || categories.length || store || p.get('area')
   return {
     mode: p.get('mode') === 'stores' || (p.get('mode') !== 'members' && storeHint) ? 'stores' : 'members',
     need: needById[p.get('need')] ? p.get('need') : null,
     scene,
     categories,
     area: areas.includes(p.get('area')) ? p.get('area') : null,
-    price: PRICE_BANDS.some((b) => b.id === p.get('price')) ? p.get('price') : null,
     q: p.get('q') ?? '',
     selected: member ? { type: 'member', item: member } : store ? { type: 'store', item: store } : null,
   }
 }
 
-const writeParams = ({ mode, need, scene, categories, area, price, q, selected }) => {
+const writeParams = ({ mode, need, scene, categories, area, q, selected }) => {
   const p = new URLSearchParams()
   if (mode === 'stores') {
     p.set('mode', 'stores')
     if (scene) p.set('scene', scene)
     if (categories.length) p.set('type', categories.join(','))
     if (area) p.set('area', area)
-    if (price) p.set('price', price)
   } else if (need) p.set('need', need)
   if (q) p.set('q', q)
   if (selected) p.set(selected.type, selected.item.id)
@@ -132,7 +130,6 @@ function Finder({ stores, directory, meeting, live }) {
   const [scene, setScene] = useState(initial.scene)
   const [categories, setCategories] = useState(initial.categories)
   const [area, setArea] = useState(initial.area)
-  const [price, setPrice] = useState(initial.price)
   const [searchTerm, setSearchTerm] = useState(initial.q)
   const [storeSort, setStoreSort] = useState('default')
   const [memberSort, setMemberSort] = useState('default')
@@ -143,8 +140,8 @@ function Finder({ stores, directory, meeting, live }) {
   const [copied, setCopied] = useState(null)
 
   useEffect(() => {
-    writeParams({ mode, need, scene, categories, area, price, q: searchTerm, selected })
-  }, [mode, need, scene, categories, area, price, searchTerm, selected])
+    writeParams({ mode, need, scene, categories, area, q: searchTerm, selected })
+  }, [mode, need, scene, categories, area, searchTerm, selected])
 
   const flash = (key) => {
     setCopied(key)
@@ -192,7 +189,6 @@ function Finder({ stores, directory, meeting, live }) {
       setScene(null)
       setCategories([])
       setArea(null)
-      setPrice(null)
     } else setNeed(null)
     setSearchTerm('')
   }
@@ -212,7 +208,6 @@ function Finder({ stores, directory, meeting, live }) {
       if (scene && !s.scenes.includes(scene)) return false
       if (categories.length && !categories.includes(s.category)) return false
       if (area && s.area !== area) return false
-      if (price && s.priceBand !== price) return false
       if (q && ![s.name, s.genre, s.description, s.specialFeatures, s.owner, s.address].join(' ').toLowerCase().includes(q))
         return false
       return true
@@ -221,7 +216,7 @@ function Finder({ stores, directory, meeting, live }) {
     if (storeSort === 'near' && userLocation)
       return [...list].sort((a, b) => distances[`store-${a.id}`] - distances[`store-${b.id}`])
     return list
-  }, [stores, scene, categories, area, price, q, storeSort, userLocation, distances])
+  }, [stores, scene, categories, area, q, storeSort, userLocation, distances])
 
   const filteredMembers = useMemo(() => {
     const list = directory.filter((m) => {
@@ -242,7 +237,7 @@ function Finder({ stores, directory, meeting, live }) {
   const mapItems = isStores ? filteredStores : filteredMembers.filter((m) => m.hasLocation)
   const resultCount = isStores ? filteredStores.length : filteredMembers.length
   const activeFilterCount = isStores
-    ? [scene, area, price, searchTerm].filter(Boolean).length + categories.length
+    ? [scene, area, searchTerm].filter(Boolean).length + categories.length
     : [need, searchTerm].filter(Boolean).length
   const sorts = isStores ? STORE_SORTS : MEMBER_SORTS
   const sort = isStores ? storeSort : memberSort
@@ -392,11 +387,6 @@ function Finder({ stores, directory, meeting, live }) {
                 {CATEGORIES.map((c) => (
                   <Chip key={c.id} active={categories.includes(c.id)} onClick={() => toggleCategory(c.id)}>
                     {c.emoji} {c.label}
-                  </Chip>
-                ))}
-                {PRICE_BANDS.map((b) => (
-                  <Chip key={b.id} active={price === b.id} onClick={() => setPrice(price === b.id ? null : b.id)}>
-                    {b.label}
                   </Chip>
                 ))}
               </div>
