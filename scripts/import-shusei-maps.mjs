@@ -20,6 +20,11 @@ const PHOTO_ORIGIN = 'https://storage.shusei-id.com'
 const out = (name) => fileURLToPath(new URL(`../src/data/${name}`, import.meta.url))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// 守成MAPS に載っていても、この MAP には出さない掲載（守成MAPS の店舗 ID）
+const SKIP = {
+  'e2ec34f8-f308-4807-b9ef-bc8c30a13902': '武者武者（志布志市）— 笹原の判断で掲載しない（2026-10-21）',
+}
+
 // ── CSV ────────────────────────────────────────
 const parseCsv = (text) => {
   const rows = []
@@ -96,6 +101,10 @@ const skipped = []
 for (const row of parseCsv(readFileSync(mapsCsv, 'utf8'))) {
   const id = row['box href'].split('/stores/')[1]
   if (!id) continue
+  if (SKIP[id]) {
+    skipped.push(SKIP[id])
+    continue
+  }
   const store = await (await fetch(`${MAPS_ORIGIN}/api/stores/${id}`, { headers: { accept: 'application/json' } })).json()
   const d = store.data ?? {}
   const owner = ownerOf(d.account_name || row.name)
@@ -134,4 +143,4 @@ export const shuseiListings = ${JSON.stringify(listings, null, 2)}
 )
 
 console.log(`\n守成MAPS: ${listings.length}件を取り込み（座標なし ${listings.filter((l) => !l.latitude).length}件）`)
-if (skipped.length) console.log(`ポータルにいない掲載者のため外した ${skipped.length}件:\n  ${skipped.join('\n  ')}`)
+if (skipped.length) console.log(`外した ${skipped.length}件（ポータルにいない掲載者・掲載しない指定）:\n  ${skipped.join('\n  ')}`)
