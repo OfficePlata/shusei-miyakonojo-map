@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone } from 'lucide-react'
+import { Search, Map as MapIcon, List, LocateFixed, Share2, Users, UtensilsCrossed, Megaphone, Printer } from 'lucide-react'
 import { cityCenter } from './data/restaurants.js'
 import { SCENES, CATEGORIES, categoryById, sceneById, storeMarker, buildStores, areasOf } from './data/taxonomy.js'
 import { NEEDS, needById, memberMarker, buildDirectory } from './data/memberTaxonomy.js'
 import { fetchMemberMap, PORTAL_URL } from './data/portal.js'
 import MapView from './components/MapView.jsx'
+import PrintView from './components/PrintView.jsx'
+import { listKey, loadList, saveList } from './lib/printList.js'
 import { Chip, EntryButton } from './components/common.jsx'
 import { distanceKm } from './lib/geo.js'
 import { StoreCard, StoreDetail } from './components/StoreParts.jsx'
@@ -109,6 +111,7 @@ const useMapData = () => {
 
 function App() {
   const data = useMapData()
+  const [printing, setPrinting] = useState(() => new URLSearchParams(window.location.search).has('print'))
   if (!data) {
     return (
       <div className="grid h-dvh place-items-center text-paper">
@@ -116,10 +119,27 @@ function App() {
       </div>
     )
   }
-  return <Finder {...data} />
+  if (printing) {
+    // 共有された印刷リンク（?print=...）ならその並び、MAP から開いたならブラウザに保存したリスト
+    const p = new URLSearchParams(window.location.search)
+    const fromUrl = p.get('print')
+    return (
+      <PrintView
+        stores={data.stores}
+        directory={data.directory}
+        initialKeys={fromUrl ? fromUrl.split(',').filter(Boolean) : loadList()}
+        initialTitle={p.get('title')}
+        onBack={() => {
+          window.history.replaceState(null, '', window.location.pathname)
+          setPrinting(false)
+        }}
+      />
+    )
+  }
+  return <Finder {...data} onOpenPrint={() => setPrinting(true)} />
 }
 
-function Finder({ stores, directory, meeting, live }) {
+function Finder({ stores, directory, meeting, live, onOpenPrint }) {
   const areas = useMemo(() => areasOf(stores), [stores])
   const storeById = useMemo(() => Object.fromEntries(stores.map((s) => [String(s.id), s])), [stores])
   const memberById = useMemo(() => Object.fromEntries(directory.map((m) => [m.id, m])), [directory])
@@ -138,6 +158,15 @@ function Finder({ stores, directory, meeting, live }) {
   const [userLocation, setUserLocation] = useState(null)
   const [locating, setLocating] = useState(false)
   const [copied, setCopied] = useState(null)
+  const [printKeys, setPrintKeys] = useState(loadList)
+
+  useEffect(() => saveList(printKeys), [printKeys])
+  const inPrint = (type, item) => printKeys.includes(listKey(type, item.id))
+  const togglePrint = (type, item) =>
+    setPrintKeys((cur) => {
+      const k = listKey(type, item.id)
+      return cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]
+    })
 
   useEffect(() => {
     writeParams({ mode, need, scene, categories, area, q: searchTerm, selected })
@@ -279,6 +308,8 @@ function Finder({ stores, directory, meeting, live }) {
           distance={distanceOf('store', selectedItem)}
           owner={ownerOf(selectedItem)}
           onOpenOwner={openMember}
+          inPrint={inPrint('store', selectedItem)}
+          onTogglePrint={() => togglePrint('store', selectedItem)}
           onClose={closeDetail}
         />
       )
@@ -289,6 +320,8 @@ function Finder({ stores, directory, meeting, live }) {
           onOpenStore={openStore}
           onShare={() => shareMember(selectedItem)}
           shared={copied === selectedItem.id}
+          inPrint={inPrint('member', selectedItem)}
+          onTogglePrint={() => togglePrint('member', selectedItem)}
           onClose={closeDetail}
         />
       )
@@ -304,6 +337,15 @@ function Finder({ stores, directory, meeting, live }) {
             <h1 className="font-display text-2xl leading-tight md:text-3xl">守成クラブ都城MAP</h1>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenPrint}
+              className="flex items-center gap-1 rounded-full bg-paper px-3 py-1.5 text-xs font-bold text-ink"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              印刷リスト
+              <span className="text-shusei">{printKeys.length}</span>
+            </button>
             <span className="hidden rounded-full bg-paper/15 px-3 py-1 text-xs font-bold sm:inline">
               宮崎県・都城会場 在籍会員
             </span>

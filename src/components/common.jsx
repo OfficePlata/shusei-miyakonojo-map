@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { X, Printer, Check } from 'lucide-react'
 
 export const Chip = ({ active, onClick, children, className = '' }) => (
   <button
@@ -10,6 +10,21 @@ export const Chip = ({ active, onClick, children, className = '' }) => (
     } ${className}`}
   >
     {children}
+  </button>
+)
+
+// 詳細パネルの「印刷リストに追加」
+export const PrintToggle = ({ active, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-ink py-2 text-sm font-black ${
+      active ? 'bg-ink text-brand' : 'bg-paper text-ink hover:bg-brand'
+    }`}
+  >
+    {active ? <Check className="h-4 w-4" /> : <Printer className="h-4 w-4" />}
+    {active ? '印刷リストに追加済み（押すと外す）' : '印刷リストに追加'}
   </button>
 )
 

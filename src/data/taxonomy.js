@@ -191,8 +191,9 @@ const withListings = (statics) => {
 }
 
 // ポータルの三部会店舗 → restaurants.js と同じ形
-const fromPortalShop = (shop, i) => ({
-  id: `p${i + 1}`,
+// ID は店名から作る（読み込み順の番号だと、共有リンクや印刷リストの店がずれるため）
+const fromPortalShop = (shop) => ({
+  id: `p-${nameKey(shop.name)}`,
   name: shop.name,
   genre: shop.category,
   description: shop.note,
@@ -248,7 +249,7 @@ export const buildStores = (portalShops = [], memberNames = null) => {
   })
   const added = portalShops
     .filter((s) => !used.has(s))
-    .map((s, i) => ({ ...fromPortalShop(s, i), sanbukai: s.sanbukai, ownerIds: s.ownerIds }))
+    .map((s) => ({ ...fromPortalShop(s), sanbukai: s.sanbukai, ownerIds: s.ownerIds }))
   return [...merged, ...added]
     .filter((r) => Number.isFinite(r.latitude) && Number.isFinite(r.longitude))
     .map(enrich)
