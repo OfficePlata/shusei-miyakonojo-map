@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check:locations": "node scripts/check-locations.mjs"
+    "check:locations": "node scripts/check-locations.mjs",
+    "import:shusei-maps": "node scripts/import-shusei-maps.mjs"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.1",

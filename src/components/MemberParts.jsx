@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Phone, Globe, Share2, Store, MessageCircle } from 'lucide-react'
+import { MapPin, Phone, Globe, Share2, Store, MessageCircle, ExternalLink } from 'lucide-react'
 import { needById, BADGES } from '../data/memberTaxonomy.js'
 import { formatDistance } from '../lib/geo.js'
 import { DetailShell, ActionLink } from './common.jsx'
@@ -156,6 +156,28 @@ export function MemberDetail({ member, distance, onOpenStore, onShare, shared, o
               <span className="flex-1 truncate">{s.name}</span>
               <span className="text-xs text-shusei">お店を見る →</span>
             </button>
+          ))}
+        </div>
+      )}
+
+      {member.listings.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          <p className="text-xs font-black">守成MAPSに掲載中</p>
+          {member.listings.map((l) => (
+            <a
+              key={l.id}
+              href={l.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-full items-center gap-2 rounded-xl border-2 border-ink p-2 text-left text-sm font-bold hover:bg-brand"
+            >
+              {l.photo && <img src={l.photo} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{l.name}</span>
+                <span className="block truncate text-[11px] font-medium text-ink/60">{l.categories.join('・')}</span>
+              </span>
+              <ExternalLink className="h-4 w-4 shrink-0 text-shusei" />
+            </a>
           ))}
         </div>
       )}

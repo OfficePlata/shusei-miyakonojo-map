@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Clock, Users, Phone, Navigation, Moon, User } from 'lucide-react'
+import { MapPin, Clock, Users, Phone, Navigation, Moon, User, ExternalLink } from 'lucide-react'
 import { categoryById, sceneById, formatClose } from '../data/taxonomy.js'
 import { formatDistance, routeUrl } from '../lib/geo.js'
 import { DetailShell, ActionLink } from './common.jsx'
@@ -80,7 +80,7 @@ export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
           <SceneTag key={s} id={s} />
         ))}
       </div>
-      {store.description && <p className="mt-4 text-sm font-medium leading-relaxed">{store.description}</p>}
+      {store.description && <p className="mt-4 whitespace-pre-line text-sm font-medium leading-relaxed">{store.description}</p>}
 
       <dl className="mt-4 space-y-2 text-sm font-medium">
         <div className="flex gap-2">
@@ -93,9 +93,9 @@ export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
         {store.openingHours && (
           <div className="flex gap-2">
             <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-            <dd>
+            <dd className="whitespace-pre-line">
               {store.openingHours}
-              {store.closingDay && <span className="ml-2 text-ink/60">定休：{store.closingDay}</span>}
+              {store.closingDay && <span className="block text-ink/60">定休：{store.closingDay}</span>}
             </dd>
           </div>
         )}
@@ -137,6 +137,17 @@ export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
           ルート案内
         </ActionLink>
       </div>
+      {store.shuseiUrl && (
+        <a
+          href={store.shuseiUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 flex items-center justify-center gap-1 rounded-xl border-2 border-ink py-2 text-xs font-black"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          守成MAPSで見る
+        </a>
+      )}
     </DetailShell>
   )
 }
