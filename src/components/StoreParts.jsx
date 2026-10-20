@@ -51,7 +51,6 @@ export function StoreCard({ store, scene, selected, distance, onSelect }) {
               <Moon className="h-3 w-3" />〜{formatClose(store.closeHour)}
             </span>
           )}
-          {store.priceRangeDinner && <span>{store.priceRangeDinner}</span>}
           {store.capacity && <span>{store.capacity}席</span>}
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1">
@@ -99,13 +98,11 @@ export function StoreDetail({ store, distance, owner, onOpenOwner, onClose }) {
             </dd>
           </div>
         )}
-        {(store.priceRangeDinner || store.capacity) && (
+        {store.capacity && (
           <div className="flex gap-2">
             <Users className="mt-0.5 h-4 w-4 shrink-0" />
             <dd>
-              {store.priceRangeDinner && <>夜 {store.priceRangeDinner}</>}
-              {store.priceRangeLunch && <> ／ 昼 {store.priceRangeLunch}</>}
-              {store.capacity && <span className="ml-2">最大{store.capacity}名</span>}
+              最大{store.capacity}名
             </dd>
           </div>
         )}

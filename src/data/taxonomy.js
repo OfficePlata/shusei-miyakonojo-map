@@ -42,16 +42,8 @@ export const SCENES = [
   { id: 'nijikai', label: '二次会', sub: '例会後の一杯', emoji: '🍻' },
   { id: 'dinner', label: '食事・一次会', sub: '18時台から入れる', emoji: '🍽️' },
   { id: 'enkai', label: '宴会・団体', sub: '28名以上OK', emoji: '🎉' },
-  { id: 'settai', label: '接待', sub: '個室・高単価', emoji: '🤝' },
-  { id: 'small', label: '少人数', sub: '1〜2名でサク飲み', emoji: '🥃' },
+  { id: 'settai', label: '接待', sub: '個室あり', emoji: '🤝' },
   { id: 'lunch', label: 'ランチ', sub: '昼営業あり', emoji: '☀️' },
-]
-
-// ── 価格帯（ディナー下限で判定） ───────────────────
-export const PRICE_BANDS = [
-  { id: 'low', label: '〜¥2,999', test: (min) => min < 3000 },
-  { id: 'mid', label: '¥3,000〜¥4,999', test: (min) => min >= 3000 && min < 5000 },
-  { id: 'high', label: '¥5,000〜', test: (min) => min >= 5000 },
 ]
 
 // "18:00～24:00" "20:00～深夜" "21:00～05:00" "11:00~15:00,18:00~3:00" → 時間（小数）
@@ -74,10 +66,6 @@ const parseHours = (raw = '') => {
   return { open, close, lunch }
 }
 
-const parseMinPrice = (text = '') => {
-  const m = text.replace(/[,，]/g, '').match(/(\d{3,6})/)
-  return m ? Number(m[1]) : null
-}
 
 // 住所から町名を取り出す（都城市の繁華街はまとめる）
 const AREA_GROUPS = { 牟田町: '牟田町・中町（繁華街）', 中町: '牟田町・中町（繁華街）' }
@@ -93,21 +81,23 @@ const categoryOf = (r, hours) => {
   return hours.open !== null && hours.open >= 20 ? 'snack' : 'food'
 }
 
-const scenesOf = (r, category, hours, minPrice) => {
+// シーンは営業時間・席数（ポータル）・店主が書いた紹介文から判定する。料金や業態からの推測では付けない
+const scenesOf = (r, category, hours) => {
   const s = new Set(r.scenes ?? [])
   const features = `${r.specialFeatures ?? ''}${r.description ?? ''}`
   if (r.sanbukai) s.add('sanbukai')
   if (hours.close !== null && hours.close >= 25) s.add('late')
   if (category !== 'food' || /居酒屋|ダイナー/.test(r.genre)) s.add('nijikai')
-  if (category === 'food' && hours.open !== null && hours.open <= 18.5) s.add('dinner')
+  // 18時台までに開いていて、20時以降も営業している飲食店（昼だけのカフェは除く）
+  if (category === 'food' && hours.open !== null && hours.open <= 18.5 && hours.close !== null && hours.close >= 20) s.add('dinner')
   if (r.capacity >= 28 || /団体|宴会/.test(features)) s.add('enkai')
-  if ((minPrice ?? 0) >= 5000 || /個室|接待/.test(features)) s.add('settai')
-  if (category === 'bar' || r.capacity <= 15) s.add('small')
+  if (/個室|接待/.test(features)) s.add('settai')
   if (hours.lunch) s.add('lunch')
   return [...s]
 }
 
-const venueOf = (r) => r.venue ?? (r.memberType?.includes(TARGET_VENUE) ? TARGET_VENUE : null)
+// restaurants.js は都城会場の会員の店だけ。会場を書いた店（venue）はそれに従う
+const venueOf = (r) => r.venue ?? TARGET_VENUE
 
 // 店名の突き合わせ用（全角半角・空白・大小を無視）
 const nameKey = (name = '') =>
@@ -179,7 +169,7 @@ const fromListing = (l) => ({
 })
 
 // 店名が同じ店に守成MAPS の掲載を重ねる（カタカナ・英字で表記が違う店は restaurants.js の aliases で引く）。写真・営業時間・定休日・電話は店主が手入れしている守成MAPS を優先し、
-// 紹介文・価格帯・席数は restaurants.js を残す。番地だけでは重ねない（同じビルに別の店が入っているため）
+// restaurants.js からは店名・業態・住所・座標・店主だけを使う。番地だけでは重ねない（同じビルに別の店が入っているため）
 const withListings = (statics) => {
   const listings = shuseiListings.filter(isFoodListing)
   const used = new Set()
@@ -193,7 +183,7 @@ const withListings = (statics) => {
       openingHours: l.hours || r.openingHours,
       closingDay: l.closed || r.closingDay,
       phoneNumber: l.phone || r.phoneNumber,
-      description: r.description || l.copy,
+      description: l.copy || l.description,
       shuseiUrl: l.url,
     }
   })
@@ -212,22 +202,18 @@ const fromPortalShop = (shop, i) => ({
   phoneNumber: shop.phone,
   openingHours: shop.hours,
   closingDay: shop.closed,
-  priceRangeDinner: shop.budget,
   capacity: shop.seats,
   venue: TARGET_VENUE,
 })
 
 const enrich = (r) => {
   const hours = parseHours(r.openingHours)
-  const minPrice = parseMinPrice(r.priceRangeDinner)
   const category = categoryOf(r, hours)
   return {
     ...r,
     category,
     area: parseArea(r.address),
-    scenes: scenesOf(r, category, hours, minPrice),
-    minPrice,
-    priceBand: PRICE_BANDS.find((b) => minPrice !== null && b.test(minPrice))?.id ?? null,
+    scenes: scenesOf(r, category, hours),
     closeHour: hours.close,
     hasImage: Boolean(r.imageUrl) && !r.imageUrl.startsWith('/api/placeholder'),
   }
