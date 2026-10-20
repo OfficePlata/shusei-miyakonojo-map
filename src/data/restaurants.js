@@ -1,9 +1,54 @@
 // 座標は住所を国土地理院の住所検索で引いた値（番・号の代表点。2026-10-19 に全店を引き直し）。
 // 手で座標を書かないこと。店を足したら npm run check:locations で住所とピンのずれを確かめる。
-// 本部の会員名簿にいない店主の店は載せない（2026-10-20 に いち・コットンクラブ・La Ville を外した）。
+// 店主がセワニンジャ・ポータルにいない店は表示しない（taxonomy.js の buildStores で外す）。
 // 守成MAPS に載っている店は、写真・営業時間・定休日・電話を守成MAPS（shuseiMaps.js）で上書きする。
 export const restaurants = [
-// ナイトスポット
+  // 確実に22時以降営業
+{
+  id: 1,
+  name: "炭焼き大衆酒場 いち",
+  genre: "居酒屋",
+  description: "2024年8月8日リニューアルオープン。山崎メガハイボール1,350円が人気！炭焼きメニューが自慢の大衆酒場。",
+  address: "宮崎県都城市牟田町20-5 スターラインビル2階",
+  latitude: 31.727043,
+  longitude: 131.063629,
+  phoneNumber: "0986-77-6407",
+  openingHours: "18:00～24:00",
+  closingDay: "月曜日",
+  priceRangeDinner: "￥3,000～￥3,999",
+  capacity: 30,
+  imageUrl: "https://lh3.googleusercontent.com/p/AF1QipMM4urajO5RNjiyb6dm22bCR0LrTzw53Lv11RpM=w408-h306-k-no",
+  rating: 4.6,
+  station: "西都城駅",
+  walkTime: "徒歩5分",
+  memberType: "守成クラブ都城会場会員",
+  specialFeatures: "山崎メガハイボール、炭焼きメニュー",
+  owner: "嶋田 真紀"
+},
+
+// 高級クラブ・キャバクラ
+{
+  id: 2,
+  name: "コットンクラブ",
+  aliases: ["CottonClub"],
+  genre: "高級クラブ",
+  description: "都城市の繁華街 牟田町で営業しているスナックです。徒歩圏内にホテルも何軒かありますので便利に使っていただけると思います。",
+  address: "宮崎県都城市中町2-3",
+  latitude: 31.725895,
+  longitude: 131.063309,
+  phoneNumber: "0986-25-1292",
+  openingHours: "20:00～25:00",
+  closingDay: "",
+  priceRangeDinner: "￥8,000～￥12,000",
+  capacity: 20,
+  imageUrl: "/api/placeholder/300/200",
+  rating: 4.00,
+  station: "都城駅",
+  walkTime: "徒歩8分",
+  memberType: "守成クラブ都城会場会員",
+  specialFeatures: "高級クラブ、ビジネス接待対応",
+  owner: "中村 昌代"
+},
 {
   id: 3,
   name: "ナイトスポット・ちゃくら",
@@ -285,6 +330,27 @@ export const restaurants = [
 },
 
 // その他の飲食店
+{
+  id: 19,
+  name: "La Ville",
+  genre: "飲食店",
+  description: "今をときめくギャルがお客様を若返らせます🌈",
+  address: "宮崎県都城市牟田町9-5 ナカムラセブンビル２Ｆ",
+  latitude: 31.725945,
+  longitude: 131.062912,
+  phoneNumber: "080-2754-7767",
+  openingHours: "21:00～26:00",
+  closingDay: "不定休",
+  priceRangeDinner: "￥7,000～",
+  capacity: 15,
+  imageUrl: "https://storage.shusei-id.com/stores/43a0084e-e2a8-4b92-b4da-33af9a203f6d/e69b7d91-c16d-4ee3-9c97-a0b203f8ec50.webp",
+  rating: 3.50,
+  station: "都城駅",
+  walkTime: "徒歩8分",
+  memberType: "守成クラブ都城会場会員",
+  specialFeatures: "多彩なメニュー",
+  owner: "前畑 祐之介"
+},
 {
   id: 20,
   name: "辛麺屋 物語",

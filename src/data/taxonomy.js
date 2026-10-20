@@ -4,7 +4,6 @@
 // restaurants.js の各店舗に `scenes: ['settai']` のように書けば、自動判定に追加できる。
 import { restaurants } from './restaurants.js'
 import { shuseiListings } from './shuseiMaps.js'
-import { notInRoster } from './roster.js'
 
 // 掲載対象の会場（宮崎県・都城会場の在籍会員のみ）
 export const TARGET_VENUE = '都城'
@@ -179,13 +178,13 @@ const fromListing = (l) => ({
   venue: TARGET_VENUE,
 })
 
-// 店名が同じ店に守成MAPS の掲載を重ねる。写真・営業時間・定休日・電話は店主が手入れしている守成MAPS を優先し、
+// 店名が同じ店に守成MAPS の掲載を重ねる（カタカナ・英字で表記が違う店は restaurants.js の aliases で引く）。写真・営業時間・定休日・電話は店主が手入れしている守成MAPS を優先し、
 // 紹介文・価格帯・席数は restaurants.js を残す。番地だけでは重ねない（同じビルに別の店が入っているため）
 const withListings = (statics) => {
   const listings = shuseiListings.filter(isFoodListing)
   const used = new Set()
   const merged = statics.map((r) => {
-    const l = listings.find((x) => !used.has(x) && sameStoreName(r.name, x.name))
+    const l = listings.find((x) => !used.has(x) && [r.name, ...(r.aliases ?? [])].some((n) => sameStoreName(n, x.name)))
     if (!l) return r
     used.add(l)
     return {
@@ -237,13 +236,13 @@ const enrich = (r) => {
 /**
  * 表示する店の一覧。portalShops（ポータルの三部会店舗）が来ていれば、
  * 同名の店は restaurants.js の写真・紹介文を残したまま三部会判定と店主を足し、無い店は追加する。
- * 名簿にいない店主の店は出さない（ポータルの店は呼び出し側で店主の ID を見て外す）。
+ * memberNames（ポータルの会員の氏名）を渡すと、店主がポータルにいない店は出さない（退会者の店を残さないため）。
  */
-const rosterOut = new Set(notInRoster.map((n) => n.replace(/[\s\u3000]+/g, '')))
-export const buildStores = (portalShops = []) => {
-  const statics = withListings(
-    restaurants.filter((r) => venueOf(r) === TARGET_VENUE && !rosterOut.has((r.owner ?? '').replace(/[\s\u3000]+/g, ''))),
-  )
+const personKey = (name = '') => name.normalize('NFKC').replace(/[\s\u3000]+/g, '').replace(/髙/g, '高').replace(/﨑/g, '崎')
+export const buildStores = (portalShops = [], memberNames = null) => {
+  const members = memberNames && new Set(memberNames.map(personKey))
+  const isMembers = (r) => !members || !r.owner || members.has(personKey(r.owner))
+  const statics = withListings(restaurants.filter((r) => venueOf(r) === TARGET_VENUE)).filter(isMembers)
   const same = makeMatcher(statics, portalShops)
   const used = new Set()
   const merged = statics.map((r) => {

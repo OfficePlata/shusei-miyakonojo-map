@@ -1,4 +1,4 @@
-// 守成MAPS（https://miyakonojo.shusei-maps.com）の掲載のうち、本部の会員名簿にいる会員のもの。
+// 守成MAPS（https://miyakonojo.shusei-maps.com）の掲載のうち、セワニンジャ・ポータルにいる会員のもの。
 // scripts/import-shusei-maps.mjs で生成（2026-10-20）。手で直さず、守成MAPS 側を直して取り込み直す。
 export const SHUSEI_MAPS_IMPORTED = '2026-10-20'
 
@@ -597,6 +597,24 @@ export const shuseiListings = [
     "url": "https://miyakonojo.shusei-maps.com/stores/ffe0c1ef-2309-4277-a50f-a3200283bc2c"
   },
   {
+    "id": "43a0084e-e2a8-4b92-b4da-33af9a203f6d",
+    "name": "La Ville",
+    "owner": "前畑 祐之介",
+    "categories": [
+      "Bar・スナック・Club"
+    ],
+    "address": "宮崎県都城市牟田町9-5 ナカムラセブンビル２Ｆ",
+    "latitude": 31.725945,
+    "longitude": 131.062912,
+    "hours": "21:00〜26:00",
+    "closed": "日曜日",
+    "phone": "080-2754-7767",
+    "copy": "今をときめくギャルがお客様を若返らせます🌈",
+    "description": "当店は、２０歳〜２０歳後半のギャル達が在籍するキャバクラとなります。\n\n店内は、落ち着いた内装で、更にギャル達を引き立てます。\n\nカラオケ完備のＶＩＰルームも、２部屋ございますので、大事なお客様とのご接待等にもご利用頂けます。\n\nフロアですと、最大20〜25名の団体様も対応しております。",
+    "photo": "https://storage.shusei-id.com/stores/43a0084e-e2a8-4b92-b4da-33af9a203f6d/e69b7d91-c16d-4ee3-9c97-a0b203f8ec50.webp",
+    "url": "https://miyakonojo.shusei-maps.com/stores/43a0084e-e2a8-4b92-b4da-33af9a203f6d"
+  },
+  {
     "id": "7d79953f-db4b-4216-8b89-955d5eb5a1da",
     "name": "椿",
     "owner": "田中 美穂",
@@ -631,6 +649,24 @@ export const shuseiListings = [
     "description": "津軽三味線を中心に音楽活動をしてます。\n三味線以外にSAXもしており、ステージではお客様の年齢層、イベントのジャンルによって観ている方が楽しくなるステージ作りを目指してます。\n三味線教室、SAXのレッスンも行っております。",
     "photo": "https://storage.shusei-id.com/stores/4981c7f5-5728-4d5c-a46d-18a91e71027c/b561ad34-e369-4ffb-95f4-ace9b7b2987b.webp",
     "url": "https://miyakonojo.shusei-maps.com/stores/4981c7f5-5728-4d5c-a46d-18a91e71027c"
+  },
+  {
+    "id": "3a1621ec-485f-4ed3-9062-004bb66b9287",
+    "name": "スナック CottonClub",
+    "owner": "中村 昌代",
+    "categories": [
+      "Bar・スナック・Club"
+    ],
+    "address": "宮崎県都城市牟田町10街区11号 アレザビル2階K",
+    "latitude": 31.726028,
+    "longitude": 131.062164,
+    "hours": "20:00~25:00",
+    "closed": "日曜日",
+    "phone": "0986-26-3242",
+    "copy": "「綺麗めのババア」と「歌が上手いかもしれない娘」がスタメンで営業してます",
+    "description": "都城市の繁華街 牟田町で営業しているスナックです。徒歩圏内にホテルも何軒かありますので便利に使っていただけると思います。",
+    "photo": "https://storage.shusei-id.com/stores/3a1621ec-485f-4ed3-9062-004bb66b9287/b3114e26-952d-41fa-bfc9-94e149e4a198.webp",
+    "url": "https://miyakonojo.shusei-maps.com/stores/3a1621ec-485f-4ed3-9062-004bb66b9287"
   },
   {
     "id": "89d61b80-0206-4cab-8ed4-46da96a5fb04",
