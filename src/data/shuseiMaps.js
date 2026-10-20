@@ -211,25 +211,6 @@ export const shuseiListings = [
     "url": "https://miyakonojo.shusei-maps.com/stores/1864c2a7-b652-48ad-b163-334c961aea1e"
   },
   {
-    "id": "e2ec34f8-f308-4807-b9ef-bc8c30a13902",
-    "name": "武者武者",
-    "owner": "家鋪 将之",
-    "categories": [
-      "ランチ",
-      "ディナー"
-    ],
-    "address": "鹿児島県志布志市志布志町志布志３丁目２１−２５",
-    "latitude": 31.472315,
-    "longitude": 131.096085,
-    "hours": "ランチ:12〜14時\nディナー:18〜22時",
-    "closed": "定休日はないですが、仕込みの関係や貸切等でランチ&ディナーお休みすることがあるので、事前にご連絡いただければ確実です。",
-    "phone": "099-401-0188",
-    "copy": "地産地消をモットーに新鮮な肉&魚を扱ってます！黒豚しゃぶしゃぶが絶品です！コスパ最強です！",
-    "description": "武者武者は、NPO法人くろしお会のＡ型事業所として障がい者の方達に働いていただき、売上は全て障がい者の方達の給与に還元しております。ひとりひとりが素晴らしい個性を持ち、一般就労や独立を目指し頑張っています。",
-    "photo": "https://storage.shusei-id.com/stores/e2ec34f8-f308-4807-b9ef-bc8c30a13902/d22f6f83-2077-40a5-a4bc-36c1e5827384.webp",
-    "url": "https://miyakonojo.shusei-maps.com/stores/e2ec34f8-f308-4807-b9ef-bc8c30a13902"
-  },
-  {
     "id": "d19ade8f-33cb-43b8-965f-12bb7db72130",
     "name": "整体らぼハレルヤplus",
     "owner": "岡原 理恵",
